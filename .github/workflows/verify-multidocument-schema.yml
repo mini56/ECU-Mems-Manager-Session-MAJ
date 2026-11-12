@@ -1,0 +1,49 @@
+name: Controle du schema documentaire multi-documents
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'bases/schema_multidoc_v1.sql'
+      - 'bases/tests/**'
+      - 'manifest.json'
+      - '.github/workflows/verify-multidocument-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-schema-multisource:
+    name: Ajouter plusieurs manuels sans perdre les autres sources ou bases ECU
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verifier plusieurs documents par langue, revisions, conflits et rollback
+        run: python bases/tests/test_schema_multidoc.py
+      - name: Verifier la structure publique des six packs et aucune fausse publication
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('.')
+          m=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+          assert m['schema_version']==2
+          assert m['documentary_schema']=='mems-documentary-multisource-v1'
+          assert set(m['documentary_bases'])=={'fr','en','pt','es','it','de'}
+          assert not m['program']['available']
+          for code,entry in m['documentary_bases'].items():
+              assert entry['language']==code
+              assert not entry['available'], 'NO_UNVALIDATED_PUBLIC_PACKAGE'
+              assert entry['document_count']==len(entry['published_documents'])==0
+              assert entry['release_url'] is None
+              assert (root/'bases'/code/'README.md').is_file()
+              assert entry['database_file']==f'mems_documentary_{code}.sqlite'
+          print('PASS_MAJ_SIX_LANGUAGES_MULTISOURCE_MANIFEST_UNPUBLISHED')
+          PY
