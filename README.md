@@ -15,6 +15,8 @@ Ce dépôt regroupe **les mises à jour du programme** et, à terme, **une base 
 
 Chaque dossier linguistique accueillera une **base SQLite indépendante**, accompagnée de son fichier de provenance et de son empreinte SHA-256. Les langues ne seront **jamais mélangées** dans une même base distribuée.
 
+**IMPORTANT — RAVE n'est qu'une source parmi d'autres.** Une base `fr` pourra contenir RAVE et d'autres manuels constructeur, bulletins ou fiches techniques, avec des identifiants de document, révisions, pages et provenances distincts. L'ajout d'un nouveau document ne doit jamais écraser les précédents. Voir [architecture multidocuments](bases/ARCHITECTURE-MULTIDOCUMENTS.md).
+
 **À ce stade, aucun pack documentaire ni Setup n'est encore publié dans ce dépôt.** Les entrées du manifeste ont `available: false`. Le programme ne doit jamais télécharger un fichier non validé.
 
 ### Protection par mot de passe — même principe que KALONÉO
