@@ -5,7 +5,17 @@
     "available": false,
     "version": null,
     "release_url": null,
-    "sha256": null
+    "sha256": null,
+    "test_release": {
+      "version": "1.1.39",
+      "channel": "TEST",
+      "status": "published_setup_windows_install_smoke_passed",
+      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-139-documentary-offline-TEST/ECU.MEMS.Manager.SESSION.Setup.exe",
+      "sha256": "aa87d20a55d7843c8a5cb05fcbaa8a7252ca95a9e9f908579a346b78b510205f",
+      "contains_documentary_database": false,
+      "offline_import_supported": true,
+      "notes": "Requires separate locally authorized documentary ZIP; encrypted public documentary packs are not published"
+    }
   },
   "documentary_bases": {
     "fr": {
