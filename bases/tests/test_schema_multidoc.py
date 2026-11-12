@@ -9,6 +9,7 @@ import hashlib
 import sqlite3
 import tempfile
 from pathlib import Path
+from contextlib import closing
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schema_multidoc_v1.sql"
@@ -55,7 +56,7 @@ def test_main() -> None:
         english_file = Path(temp) / "mems_documentary_en.sqlite"
         schema = SCHEMA.read_text(encoding="utf-8")
 
-        with sqlite3.connect(french_file) as french:
+        with closing(sqlite3.connect(french_file)) as french:
             french.executescript(schema)
             french.execute(
                 "INSERT INTO documentary_database(singleton,schema_version,"
@@ -143,7 +144,7 @@ def test_main() -> None:
             assert "ecu" not in table_names
             assert "ecu_mems_manager" not in table_names
 
-        with sqlite3.connect(english_file) as english:
+        with closing(sqlite3.connect(english_file)) as english:
             english.executescript(schema)
             english.execute(
                 "INSERT INTO documentary_database(singleton,schema_version,"
@@ -161,8 +162,8 @@ def test_main() -> None:
             ).fetchone()[0] == 1
 
         # Neither DB contains source rows of the other language.
-        with sqlite3.connect(french_file) as fr, \
-                sqlite3.connect(english_file) as en:
+        with closing(sqlite3.connect(french_file)) as fr, \
+                closing(sqlite3.connect(english_file)) as en:
             assert fr.execute(
                 "SELECT COUNT(*) FROM documentary_documents WHERE language!='fr'"
             ).fetchone()[0] == 0
