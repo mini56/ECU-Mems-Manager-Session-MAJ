@@ -1,0 +1,47 @@
+name: Publier SESSION 139 test - Setup sans base documentaire
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-139-setup-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish-setup-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Telecharger et verifier le Setup Windows signe par SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://github.com/mini56/ECU-Mems-Manager-Session/releases/download/session-139-documentary-offline-TEST/ECU.MEMS.Manager.SESSION.Setup.exe'
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --output ECU.MEMS.Manager.SESSION.Setup.exe "$url"
+          printf '%s  %s\n' \
+            aa87d20a55d7843c8a5cb05fcbaa8a7252ca95a9e9f908579a346b78b510205f \
+            ECU.MEMS.Manager.SESSION.Setup.exe | sha256sum --check --status
+          test "$(stat -c '%s' ECU.MEMS.Manager.SESSION.Setup.exe)" -eq 447448994
+          test "$(head -c 2 ECU.MEMS.Manager.SESSION.Setup.exe)" = MZ
+          sha256sum ECU.MEMS.Manager.SESSION.Setup.exe > SESSION-139-Setup.sha256
+          echo SESSION_139_SOURCE_SHA256_VERIFIED
+      - name: Mettre sur GitHub MAJ la version test du programme
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='mems-session-139-documentary-offline-TEST'
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo 'TAG_ALREADY_PUBLISHED'
+            exit 0
+          fi
+          gh release create "$tag" \
+            ECU.MEMS.Manager.SESSION.Setup.exe SESSION-139-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 139 - test import documentaire' \
+            --notes 'Setup Windows de test : compilation, installation et lancement sur runner GitHub verifies. Ce Setup ne contient aucune documentation Rover : importer le ZIP local autorise dans la page Mise a jour des bases documentaires, en choisissant un mot de passe. Les bases ECU, expertes et les historiques sont independants et preserves. Le test positif du mot de passe, du refus de fichier invalide et de la sauvegarde est reussi. La publication des bases constructeur n est pas incluse dans cette Release.' \
+            --prerelease
+          gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json url,assets --jq '{url,assets:[.assets[].name]}'
