@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "application": "ECU MEMS Manager SESSION",
   "program": {
     "available": false,
@@ -15,9 +15,18 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": "AKM 7169FRE",
       "installation_password_required": true,
-      "encrypted_package_required": true
+      "encrypted_package_required": true,
+      "database_file": "mems_documentary_fr.sqlite",
+      "document_count": 0,
+      "published_documents": [],
+      "planned_documents": [
+        {
+          "document_id": "rover-akm7169",
+          "edition": "AKM7169FRE",
+          "source_status": "awaiting_original_french_pdf"
+        }
+      ]
     },
     "en": {
       "language": "en",
@@ -26,9 +35,20 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": "AKM 7169ENG",
       "installation_password_required": true,
-      "encrypted_package_required": true
+      "encrypted_package_required": true,
+      "database_file": "mems_documentary_en.sqlite",
+      "document_count": 0,
+      "published_documents": [],
+      "planned_documents": [
+        {
+          "document_id": "rover-akm7169",
+          "edition": "AKM7169ENG",
+          "source_status": "existing_reconstructible",
+          "original_sqlite_sha256": "dd37296b5d477c4124133f51e96691858c0ae4746d42c3e4478bf6003a9445bb",
+          "source_pdf_sha256": "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0"
+        }
+      ]
     },
     "pt": {
       "language": "pt",
@@ -37,9 +57,12 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null,
       "installation_password_required": true,
-      "encrypted_package_required": true
+      "encrypted_package_required": true,
+      "database_file": "mems_documentary_pt.sqlite",
+      "document_count": 0,
+      "published_documents": [],
+      "planned_documents": []
     },
     "es": {
       "language": "es",
@@ -48,9 +71,12 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null,
       "installation_password_required": true,
-      "encrypted_package_required": true
+      "encrypted_package_required": true,
+      "database_file": "mems_documentary_es.sqlite",
+      "document_count": 0,
+      "published_documents": [],
+      "planned_documents": []
     },
     "it": {
       "language": "it",
@@ -59,9 +85,12 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null,
       "installation_password_required": true,
-      "encrypted_package_required": true
+      "encrypted_package_required": true,
+      "database_file": "mems_documentary_it.sqlite",
+      "document_count": 0,
+      "published_documents": [],
+      "planned_documents": []
     },
     "de": {
       "language": "de",
@@ -70,9 +99,14 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null,
       "installation_password_required": true,
-      "encrypted_package_required": true
+      "encrypted_package_required": true,
+      "database_file": "mems_documentary_de.sqlite",
+      "document_count": 0,
+      "published_documents": [],
+      "planned_documents": []
     }
-  }
+  },
+  "documentary_schema": "mems-documentary-multisource-v1",
+  "document_packs_policy": "one_complete_sqlite_per_language_multiple_source_documents"
 }
