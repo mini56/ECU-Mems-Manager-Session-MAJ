@@ -2,6 +2,16 @@
 
 Ce dépôt regroupe **les mises à jour du programme** et, à terme, **une base documentaire complète par langue**.
 
+## Avancement vérifié — 12 novembre 2026
+
+- **RCL0193FRE français** : base SQLite locale relue disponible au propriétaire, **371 pages, 5 958 entrées, 325 fac-similés**. Détails : [bases/fr/](bases/fr/).
+- **AKM7169FRE français** : uniquement les **20 pages originales du chapitre MEMS SPi** ; autres chapitres non retrouvés ; OCR non entièrement relu.
+- **AKM7169ENG anglais** : base SQLite source originale reconstruite et testée, **482 pages**. Détails : [bases/en/](bases/en/).
+- **MEMS Manager SESSION** : installateur documentaire ZIP local avec mot de passe et sauvegarde testé sur des données synthétiques ; un vrai **Setup Windows 139** est en cours de contrôle sur [GitHub Actions du programme](https://github.com/mini56/ECU-Mems-Manager-Session/actions).
+- **Téléchargement automatisé depuis ce site** : **aucun pack activé pour le moment**, aucun fichier constructeur public, le manifeste indique encore `available: false`.
+
+Les sources originales des manuels sont soumises aux droits de diffusion. La préparation d'une SQLite ne prouve pas l'autorisation de la publier sur ce dépôt public. Le site ne présentera aucun fichier absent comme téléchargeable et le bouton du logiciel ne proposera pas d'installation qui ne fonctionne pas.
+
 ## Organisation
 
 - `bases/fr/` — Français, priorité n° 1 (édition constructeur française)
