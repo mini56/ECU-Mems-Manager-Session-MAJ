@@ -15,7 +15,9 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": "AKM 7169FRE"
+      "edition": "AKM 7169FRE",
+      "installation_password_required": true,
+      "encrypted_package_required": true
     },
     "en": {
       "language": "en",
@@ -24,7 +26,9 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": "AKM 7169ENG"
+      "edition": "AKM 7169ENG",
+      "installation_password_required": true,
+      "encrypted_package_required": true
     },
     "pt": {
       "language": "pt",
@@ -33,7 +37,9 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null
+      "edition": null,
+      "installation_password_required": true,
+      "encrypted_package_required": true
     },
     "es": {
       "language": "es",
@@ -42,7 +48,9 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null
+      "edition": null,
+      "installation_password_required": true,
+      "encrypted_package_required": true
     },
     "it": {
       "language": "it",
@@ -51,7 +59,9 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null
+      "edition": null,
+      "installation_password_required": true,
+      "encrypted_package_required": true
     },
     "de": {
       "language": "de",
@@ -60,7 +70,9 @@
       "version": null,
       "release_url": null,
       "sha256": null,
-      "edition": null
+      "edition": null,
+      "installation_password_required": true,
+      "encrypted_package_required": true
     }
   }
 }
