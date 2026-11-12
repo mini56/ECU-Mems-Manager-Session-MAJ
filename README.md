@@ -17,6 +17,20 @@ Chaque dossier linguistique accueillera une **base SQLite indépendante**, accom
 
 **À ce stade, aucun pack documentaire ni Setup n'est encore publié dans ce dépôt.** Les entrées du manifeste ont `available: false`. Le programme ne doit jamais télécharger un fichier non validé.
 
+### Protection par mot de passe — même principe que KALONÉO
+
+**Exigence retenue, à implémenter dans MEMS Manager SESSION :**
+
+- Télécharger le pack de la langue choisie depuis ce dépôt de mises à jour, puis vérifier sa taille et son **SHA-256**.
+- Demander **un mot de passe avant toute installation ou mise à jour** d'une base documentaire, y compris lors d'un import hors ligne.
+- Refuser un mot de passe absent ou incorrect, sans modifier ni supprimer la base déjà installée ; même règle pour un lancement silencieux.
+- Ne jamais enregistrer de mot de passe en clair dans le code, le manifeste, les GitHub Releases ou les journaux. Un secret de publication reste uniquement côté construction.
+- Ne jamais remplacer la base en cours avant vérification intégrale de l'intégrité SQLite, de la langue, de la provenance et du SHA-256. Installation atomique avec restauration en cas d'échec.
+- **Ne pas demander de mot de passe pour consulter** une base déjà installée : il protège l'installation et les mises à jour, pas la recherche documentaire.
+- Pour que le mot de passe protège aussi le contenu téléchargeable d'un dépôt public, publier uniquement des **packs chiffrés et authentifiés** (et non des SQLite ou ZIP lisibles), avec vérification à l'import. Le format cryptographique exact doit être implémenté et testé avant publication.
+
+Ce document définit le comportement **attendu** ; aucun mécanisme d'installation avec mot de passe n'est encore opérationnel dans MEMS Manager SESSION. Les bases sont encore toutes indisponibles dans le manifeste.
+
 ### Protection des sources RAVE
 
 La présence d'une édition RAVE ne donne pas automatiquement le droit de redistribuer son PDF ou les données extraites. **Vérifier les droits de redistribution avant tout dépôt public**. Ne pas placer de PDF constructeur ou de base documentaire dans ce dépôt public sans cette vérification.
