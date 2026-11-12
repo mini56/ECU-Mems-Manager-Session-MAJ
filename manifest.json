@@ -22,9 +22,17 @@
       "published_documents": [],
       "planned_documents": [
         {
-          "document_id": "rover-akm7169",
+          "document_id": "rover-rcl0193",
+          "edition": "RCL0193FRE",
+          "source_pages": 371,
+          "source_status": "local_sqlite_reviewed_pending_pack_installation_and_distribution_rights",
+          "source_pdf_sha256": "0c7fef28d0d0f0673ba321d6625a019c005823103caa98afb3258114e1fec713"
+        },
+        {
+          "document_id": "rover-akm7169-spi",
           "edition": "AKM7169FRE",
-          "source_status": "awaiting_original_french_pdf"
+          "available_source_pages": 20,
+          "source_status": "partial_original_french_spi_excerpt_ocr_not_fully_reviewed"
         }
       ]
     },
@@ -44,7 +52,8 @@
         {
           "document_id": "rover-akm7169",
           "edition": "AKM7169ENG",
-          "source_status": "existing_reconstructible",
+          "source_pages": 482,
+          "source_status": "private_sqlite_built_and_integrity_checked_not_publicly_distributable",
           "original_sqlite_sha256": "dd37296b5d477c4124133f51e96691858c0ae4746d42c3e4478bf6003a9445bb",
           "source_pdf_sha256": "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0"
         }
