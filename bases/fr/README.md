@@ -1,13 +1,21 @@
 # Base documentaire — Français
 
-**Code de langue :** `fr`
+**Langue :** `fr` — une base autonome regroupant plusieurs documents constructeur originaux.
 
-**Édition constructeur :** AKM 7169FRE
+## État réel au 12 novembre 2026
 
-**État :** Source française à récupérer et à auditer. Priorité de construction.
+| Source constructeur | Édition | Données préparées | Sur le site MAJ |
+| --- | --- | --- | --- |
+| Manuel français Mini | RCL0193FRE, 371 pages | SQLite locale relue : 5 958 entrées et 325 fac-similés | **Non publiée** |
+| Chapitre MEMS SPi | AKM7169FRE, 20 pages | Extrait français original disponible, OCR non intégralement relu | **Non publiée** |
+| Manuel AKM7169FRE complet | Autres chapitres | Source complète non retrouvée | Non disponible |
 
-Ce dossier est réservé aux éléments de cette langue uniquement. Le futur pack sera une base **SQLite autonome**, contrôlée avant publication. Aucun document d'une autre langue ne doit être ajouté pour compléter artificiellement cette base.
+Les fichiers de travail existent hors de ce dépôt. En revanche, **aucune base ne peut actuellement être téléchargée avec le bouton MAJ de SESSION 138**, et le manifeste indique donc correctement `available: false`.
 
-**Pack téléchargeable : non disponible.** Aucun fichier de manuel constructeur n'est publié ici.
+La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.com/mini56/ECU-Mems-Manager-Session/tree/rave-fr-source-sqlite-20261112) contient le lecteur C++ des bases par langue et l'installation hors ligne d'un ZIP avec mot de passe. Un Setup SESSION 139 de test est en cours de compilation/validation, sans base constructeur embarquée.
 
-La publication se fera via une GitHub Release, avec numéro de version, provenance, SHA-256, contrôle d'intégrité et vérification des droits de diffusion. La mise à jour du `manifest.json` n'est autorisée qu'après cette publication vérifiée.
+## Avant une publication publique
+
+Le dépôt MAJ est **public**. Les manuels, leurs illustrations et des transcriptions restent soumis aux droits de leur éditeur. Ne pas mettre les fichiers Rover sur une Release publique sans autorisation de redistribution confirmée, même chiffrés.
+
+Le manifeste deviendra `available: true` seulement après publication d'un pack autorisé et après validation de son intégrité, de sa langue, de son chiffrement, de sa provenance et de son installation par le programme. Les données ECU, personnelles et expertes restent totalement indépendantes.
