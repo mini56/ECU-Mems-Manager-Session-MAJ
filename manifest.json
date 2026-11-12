@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "application": "ECU MEMS Manager SESSION",
+  "program": {
+    "available": false,
+    "version": null,
+    "release_url": null,
+    "sha256": null
+  },
+  "documentary_bases": {
+    "fr": {
+      "language": "fr",
+      "description": "Français",
+      "available": false,
+      "version": null,
+      "release_url": null,
+      "sha256": null,
+      "edition": "AKM 7169FRE"
+    },
+    "en": {
+      "language": "en",
+      "description": "English",
+      "available": false,
+      "version": null,
+      "release_url": null,
+      "sha256": null,
+      "edition": "AKM 7169ENG"
+    },
+    "pt": {
+      "language": "pt",
+      "description": "Português",
+      "available": false,
+      "version": null,
+      "release_url": null,
+      "sha256": null,
+      "edition": null
+    },
+    "es": {
+      "language": "es",
+      "description": "Español",
+      "available": false,
+      "version": null,
+      "release_url": null,
+      "sha256": null,
+      "edition": null
+    },
+    "it": {
+      "language": "it",
+      "description": "Italiano",
+      "available": false,
+      "version": null,
+      "release_url": null,
+      "sha256": null,
+      "edition": null
+    },
+    "de": {
+      "language": "de",
+      "description": "Deutsch",
+      "available": false,
+      "version": null,
+      "release_url": null,
+      "sha256": null,
+      "edition": null
+    }
+  }
+}
