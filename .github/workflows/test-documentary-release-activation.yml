@@ -1,0 +1,113 @@
+name: Vérifier le système d'activation FR EN sans publier
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bases/tools/verify_licensed_release_and_enable.py'
+      - '.github/workflows/test-documentary-release-activation.yml'
+permissions:
+  contents: read
+jobs:
+  test-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Charger les sources du programme pour les tests non publiables
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: 0fc83fbc03fc663001c915e1ae05b9d366fa92d4
+          path: mems-source
+      - name: Préparer les bibliothèques cryptographiques
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Construire deux vrais schémas avec données de test non publiées
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p mems-source/output/rave-fr mems-source/output/rave-en
+          python3 mems-source/tools/build_rave_fr_documentary.py \
+            --reference-root mems-source/database/reference \
+            --output mems-source/output/rave-fr/mems_documentary_fr.sqlite
+          python3 mems-source/tools/test_documentary_fixture.py \
+            --source mems-source/output/rave-fr
+          python3 mems-source/tools/test_documentary_multisource_fixture.py \
+            --source mems-source/output/rave-fr
+          python3 mems-source/tools/build_rave_en_documentary.py \
+            --parts mems-source/database/documentary/parts \
+            --output mems-source/output/rave-en
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          out=Path('temporary-synthetic-packs')
+          out.mkdir(exist_ok=True)
+          for lang in ('fr','en'):
+              root=Path('mems-source/output/rave-'+lang)
+              with zipfile.ZipFile(out/(lang+'.zip'),'w',
+                                   zipfile.ZIP_DEFLATED) as archive:
+                  for file in sorted(root.rglob('*')):
+                      if file.is_file() and (
+                          file.suffix=='.sqlite' or file.parent.name=='images'):
+                          archive.write(file,file.relative_to(root))
+              print('PREPARED_TEMPORARY_NONPUBLIC_TEST',lang)
+          PY
+      - name: Exécuter le contrôle complet AES, SQLite et manifeste dans un dossier temporaire
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,importlib.util,json,os,struct,sys,tempfile
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          src=Path('bases/tools/verify_licensed_release_and_enable.py')
+          spec=importlib.util.spec_from_file_location('activation',src)
+          module=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          temp=Path('temporary-synthetic-packs')
+          test_secret='DO_NOT_USE_CI_ONLY_SyntheticPassword_2026'
+          for lang in ('fr','en'):
+              plain=(temp/(lang+'.zip')).read_bytes()
+              module.validate_plaintext_zip(plain,lang)
+              salt,nonce=os.urandom(16),os.urandom(12)
+              head=b'MEMSDOC1'+bytes([1])+salt+nonce+struct.pack('<Q',len(plain))
+              key=hashlib.pbkdf2_hmac('sha256',test_secret.encode(),
+                                      salt,210000,32)
+              payload=head+AESGCM(key).encrypt(nonce,plain,head)
+              record=module.EXPECTED[lang]
+              filename=record['name']
+              (temp/filename).write_bytes(payload)
+              record['sha256']=hashlib.sha256(payload).hexdigest()
+              record['size']=len(payload)
+              module.decrypt_and_verify(temp/filename,lang,test_secret)
+              try:
+                  module.decrypt_and_verify(temp/filename,lang,'BAD_PASSWORD')
+              except RuntimeError:
+                  pass
+              else:
+                  raise AssertionError('WRONG_PASSWORD_ACCEPTED')
+              print('PUBLISHER_PACK_AUTHENTICATION_VERIFIER_PASS',lang)
+          import shutil
+          manifest=temp/'manifest.json'
+          shutil.copy2('manifest.json',manifest)
+          os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD']=test_secret
+          sys.argv=[str(src),'--manifest',str(manifest),
+                    '--asset-dir',str(temp),
+                    '--tag',module.EXPECTED_TAG,
+                    '--language','both',
+                    '--rights-confirmed',
+                    '--rights-reference','SYNTHETIC_CI_TEST_NO_REAL_LICENSE']
+          module.main()
+          result=json.loads(manifest.read_text())
+          assert all(result['documentary_bases'][lang]['available']
+                     for lang in ('fr','en'))
+          assert all(result['documentary_bases'][lang]['sha256'] ==
+                     module.EXPECTED[lang]['sha256']
+                     for lang in ('fr','en'))
+          assert not all(json.loads(Path('manifest.json').read_text())
+                         ['documentary_bases'][lang]['available']
+                         for lang in ('fr','en'))
+          print('SYNTHETIC_FR_EN_MAJ_MANIFEST_GATE_PASS')
+          PY
