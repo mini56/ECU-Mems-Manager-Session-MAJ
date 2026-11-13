@@ -1,0 +1,74 @@
+name: Auditer les bases FR et EN deposees sans publication
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bases/depot/**'
+      - 'bases/tools/assemble_deposit_parts.py'
+      - 'bases/tools/verify_licensed_release_and_enable.py'
+      - '.github/workflows/audit-deposited-documentary-packs.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-private-password:
+    name: Verifier AES-GCM, langues, SQLite, documents et images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Charger le depot et Git LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Installer les modules de controle
+        run: python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Authentifier et auditer chaque base du dossier sans la publier
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          set -euo pipefail
+          set +x
+          python3 - <<'PY'
+          import importlib.util, os
+          from pathlib import Path
+
+          def load(name, path):
+              spec=importlib.util.spec_from_file_location(name,path)
+              module=importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              return module
+
+          secret=os.environ.get("MEMS_DOCUMENTARY_PUBLISH_PASSWORD", "")
+          if len(secret)<12:
+              raise SystemExit("MAJ_OWNER_SECRET_MISSING")
+          root=Path("bases/depot")
+          stage=Path("candidate-assets")
+          assembler=load("assemble",Path("bases/tools/assemble_deposit_parts.py"))
+          validator=load("verify",Path("bases/tools/verify_licensed_release_and_enable.py"))
+          paths=[]
+          for name in (
+              "MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
+              "MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted",
+          ):
+              direct=root/name
+              if direct.exists():
+                  paths.append("bases/depot/"+name)
+              else:
+                  for suffix in (".part1",".part2"):
+                      paths.append("bases/depot/"+name+suffix)
+          packs=assembler.collect_deposits(root,paths,stage)
+          if set(packs)!={"fr","en"}:
+              raise SystemExit("FR_AND_EN_REQUIRED_FOR_THIS_FIRST_AUDIT")
+          for language,record in sorted(packs.items()):
+              digest,documents=validator.validate_encrypted(
+                  stage/record["name"],language,secret)
+              if digest!=record["sha256"] or not documents:
+                  raise SystemExit("AUTHENTICATION_OR_MANUALS_FAILED_"+language)
+              print("DOCUMENTARY_PACK_VERIFIED", language,
+                    "documents",len(documents),"sha256",digest)
+              for doc in documents:
+                  print("SOURCE_VERIFIED",language,doc["document_id"],
+                        "pages",doc["source_pages"])
+          print("FR_EN_FULL_ENCRYPTION_AND_SQLITE_AUDIT_SUCCESS_NO_PUBLICATION")
+          PY
