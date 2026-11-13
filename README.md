@@ -31,6 +31,9 @@ Chaque dossier linguistique accueillera une **base SQLite indépendante**, accom
 
 ### Protection par mot de passe — même principe que KALONÉO
 
+**Décision définitive :** le mot de passe est choisi **uniquement par le propriétaire/administrateur du projet** lors de la création des packs chiffrés. L'utilisateur final n'a aucun bouton pour créer son propre mot de passe : il saisit le secret que l'administrateur lui a communiqué. Le logiciel vérifie ce secret par l'authentification AES-GCM du pack ; un ZIP documentaire non chiffré n'est pas installable depuis l'interface. Voir [règles et configuration du secret](bases/SECURITE-MOT-DE-PASSE.md).
+
+
 **Exigence retenue, à implémenter dans MEMS Manager SESSION :**
 
 - Télécharger le pack de la langue choisie depuis ce dépôt de mises à jour, puis vérifier sa taille et son **SHA-256**.
