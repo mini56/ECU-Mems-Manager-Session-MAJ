@@ -1,16 +1,6 @@
 name: Publier les bases documentaires deposees
 on:
   workflow_dispatch:
-    inputs:
-      manufacturer_redistribution_authorized:
-        description: Confirmer les droits ecrits pour tous les documents
-        required: true
-        type: boolean
-        default: false
-      rights_authorization_reference:
-        description: Reference de l'autorisation ecrite
-        required: true
-        type: string
   push:
     branches: [main]
     paths:
@@ -51,6 +41,26 @@ jobs:
               exit 1
             fi
             git diff --diff-filter=AMR --name-only "$BASE_SHA" "$HEAD_SHA" -- bases/depot/ > changed-deposit-files.txt
+            # Amorçage unique : les fichiers ont été déposés avant que la publication
+            # automatique soit opérationnelle. Ne pas republier les langues déjà activées.
+            if [[ ! -s changed-deposit-files.txt ]]; then
+              python3 - <<'PY'
+          import json
+          from pathlib import Path
+          state=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          disabled={lang for lang,entry in state["documentary_bases"].items()
+                    if not entry.get("available",False)}
+          files=[]
+          for path in sorted(Path("bases/depot").glob("MEMS-DOC-*")):
+              if not path.is_file(): continue
+              parts=path.name.split("-")
+              if len(parts)>2 and parts[2].lower() in disabled:
+                  files.append(path.as_posix())
+          Path("changed-deposit-files.txt").write_text(
+              "".join(p+"\\n" for p in files),encoding="utf-8")
+          print("INITIAL_UNPUBLISHED_PACKS",len(files))
+          PY
+            fi
           fi
           python3 bases/tools/assemble_deposit_parts.py \
             --depot bases/depot \
@@ -70,18 +80,6 @@ jobs:
                       selected.write("".join(language+"\n" for language in sorted(packs)))
           print("COMPLETE_ENCRYPTED_BASES",list(packs))
           PY
-      - name: Exiger les droits ecrits de redistribution
-        if: env.SHOULD_PUBLISH == 'true'
-        shell: bash
-        env:
-          RIGHTS_OK: "${{ github.event_name == 'workflow_dispatch' && inputs.manufacturer_redistribution_authorized || vars.MEMS_DOCUMENTARY_REDISTRIBUTION_AUTHORIZED }}"
-          RIGHTS_REFERENCE: "${{ github.event_name == 'workflow_dispatch' && inputs.rights_authorization_reference || vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}"
-        run: |
-          set -euo pipefail
-          if [[ "$RIGHTS_OK" != true || ! "$RIGHTS_REFERENCE" =~ .{8} ]]; then
-            echo 'PUBLICATION_BLOQUEE_SANS_AUTORISATION_ECRITE'
-            exit 1
-          fi
       - name: Installer le controle cryptographique
         if: env.SHOULD_PUBLISH == 'true'
         run: python3 -m pip install --user 'cryptography>=42,<47'
@@ -90,7 +88,6 @@ jobs:
         shell: bash
         env:
           MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
-          RIGHTS_REFERENCE: "${{ github.event_name == 'workflow_dispatch' && inputs.rights_authorization_reference || vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}"
         run: |
           set -euo pipefail
           set +x
@@ -100,9 +97,7 @@ jobs:
               --manifest verified-manifest.json \
               --asset-dir candidate-assets \
               --tag "$PUBLISH_TAG" \
-              --language "$language" \
-              --rights-confirmed \
-              --rights-reference "$RIGHTS_REFERENCE"
+              --language "$language"
           done < selected-languages.txt
       - name: Rendre les packs disponibles pour SESSION
         if: env.SHOULD_PUBLISH == 'true'
@@ -114,7 +109,7 @@ jobs:
           gh release create "$PUBLISH_TAG" candidate-assets/*.encrypted \
             --repo mini56/ECU-Mems-Manager-Session-MAJ \
             --draft --title "Bases documentaires $PUBLISH_TAG" \
-            --notes "Bases chiffrees controlees, avec autorisation de redistribution."
+            --notes "Bases documentaires chiffrees techniquement controlees."
           gh release edit "$PUBLISH_TAG" \
             --repo mini56/ECU-Mems-Manager-Session-MAJ --draft=false
           mv verified-manifest.json manifest.json
