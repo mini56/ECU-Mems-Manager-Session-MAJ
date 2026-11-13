@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "kind": "documentary_encrypted_release_candidates",
+  "prepared_at": "2026-11-13",
+  "application": "ECU MEMS Manager SESSION",
+  "protected_format": "MEMSDOC1",
+  "encryption": "AES-256-GCM",
+  "language_policy": "one SQLite database per language",
+  "publication_status": "prepared_offline_not_published",
+  "public_redistribution_rights": "not_verified",
+  "do_not_set_available_true_until": "assets are actually hosted on an authorized release with verified hashes and rights",
+  "packs": [
+    {
+      "language": "fr",
+      "version": "2026.11.13",
+      "asset_name": "MEMS-DOC-FR-MAJ-20261113.encrypted",
+      "asset_bytes": 15336187,
+      "asset_sha256": "f3bb07fc8a39d77fbf8dfcf8cfb6a087574848a10688512760f3f16ba5d66496",
+      "source_zip_sha256": "5a9a1a63f603fc856c5d238e9a762c563a285b36396dac0f8b4613a27c8f6e5b",
+      "database_name": "mems_documentary_fr.sqlite",
+      "database_sha256": "00f7ea199a0a65500f4ece23c0c5aa80a4c8abeeb14ba26f4bc8ea1f9496",
+      "source_documents": [
+        {
+          "document_id": "RCL0193FRE",
+          "pages": 371
+        }
+      ],
+      "documentary_entries": 5958,
+      "manufacturer_images": 325,
+      "remaining_review_required": 0,
+      "sqlite_integrity": "ok",
+      "foreign_key_issues": 0,
+      "all_images_verified_by_sha256": true,
+      "source_review_report": "RCL0193FRE_relecture_finale_rapport.json",
+      "excluded_from_this_pack": [
+        {
+          "document_id": "AKM7169FRE",
+          "reason": "20-page SPi excerpt is not fully reviewed"
+        }
+      ]
+    },
+    {
+      "language": "en",
+      "version": "2026.11.13",
+      "asset_name": "MEMS-DOC-EN-MAJ-20261113.encrypted",
+      "asset_bytes": 6731477,
+      "asset_sha256": "719a4d668dbfe66b3209e89ee57ff972b0b1d7ee92712a14e837caf8546b6eb1",
+      "source_zip_sha256": "9089488e9ea96792be17524b59b687f6015da32e377199b6fab13bb0a27cd514",
+      "database_name": "mems_documentary_en.sqlite",
+      "database_sha256": "aaf86ec665f90864521eb010fe05eb7f710ba3291a604e16e188bca743c69a68d",
+      "source_documents": [
+        {
+          "document_id": "AKM7169ENG",
+          "pages": 482
+        }
+      ],
+      "procedures": 336,
+      "procedure_steps": 5055,
+      "technical_values": 630,
+      "sqlite_integrity": "ok",
+      "foreign_key_issues": 0,
+      "manufacturer_pdf_embedded": false
+    }
+  ],
+  "note": "This is metadata only; these encrypted assets have not been attached to GitHub Releases. A package encrypted with an older local secret must not be assumed to match the secret currently configured in GitHub MAJ."
+}
