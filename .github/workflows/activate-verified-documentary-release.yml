@@ -37,11 +37,11 @@ jobs:
       - name: Vérifier l'autorisation de redistribution
         shell: bash
         env:
-          RIGHTS_OK: '\${{ inputs.manufacturer_redistribution_authorized }}'
-          RIGHTS_REFERENCE: '\${{ inputs.rights_authorization_reference }}'
+          RIGHTS_OK: '${{ inputs.manufacturer_redistribution_authorized }}'
+          RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
         run: |
           set -euo pipefail
-          if [[ "$RIGHTS_OK" != true || "\${#RIGHTS_REFERENCE}" -lt 8 ]]; then
+          if [[ "$RIGHTS_OK" != true || "${#RIGHTS_REFERENCE}" -lt 8 ]]; then
             echo 'WRITTEN_REDISTRIBUTION_RIGHTS_REQUIRED'
             exit 1
           fi
@@ -49,8 +49,8 @@ jobs:
       - name: Vérifier le tag, la Release et les packs
         shell: bash
         env:
-          GH_TOKEN: '\${{ github.token }}'
-          INPUT_TAG: '\${{ inputs.release_tag }}'
+          GH_TOKEN: '${{ github.token }}'
+          INPUT_TAG: '${{ inputs.release_tag }}'
         run: |
           set -euo pipefail
           if [[ ! "$INPUT_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,43}$ ]]; then
@@ -71,10 +71,10 @@ jobs:
       - name: Vérifier et activer la nouvelle version de chaque langue
         shell: bash
         env:
-          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '\${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
-          RIGHTS_REFERENCE: '\${{ inputs.rights_authorization_reference }}'
-          INPUT_TAG: '\${{ inputs.release_tag }}'
-          LANGUAGES: '\${{ inputs.language }}'
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+          RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
+          INPUT_TAG: '${{ inputs.release_tag }}'
+          LANGUAGES: '${{ inputs.language }}'
         run: |
           set -euo pipefail
           set +x
@@ -98,5 +98,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- manifest.json
           git commit -m 'Publish next verified documentary snapshot'
-          git push origin HEAD:\${{ github.ref_name }}
+          git push origin HEAD:${{ github.ref_name }}
           echo DOCUMENTARY_UPDATE_AVAILABLE
