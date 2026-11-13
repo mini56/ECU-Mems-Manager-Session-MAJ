@@ -1,38 +1,58 @@
-# Mise en ligne des bases documentaires — FR et EN
+# Mises à jour documentaires : mécanisme évolutif
 
-**État au 13 novembre 2026 :** la Release `mems-documentary-fr-en-20261113` existe sous forme de **brouillon**, sans pièces jointes. La configuration du manifeste est désactivée (`available: false`). Ne pas annoncer les bases disponibles tant que les fichiers et contrôles ne sont pas réellement terminés.
+## État réel au 13 novembre 2026
 
-## Deux fichiers précis à déposer dans le brouillon
+Les anciennes valeurs figées (deux manuels FR, un manuel EN, tailles,
+empreintes et Release fixes) ont été supprimées du mécanisme de publication.
 
-| Langue | Fichier | Taille (octets) | SHA-256 |
-| --- | --- | ---: | --- |
-| Français (RCL0193FRE + AKM7169FRE SPi) | `MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted` | 28098898 | `1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04` |
-| Anglais (AKM7169ENG) | `MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted` | 6731477 | `10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab` |
+Une nouvelle Release peut maintenant fournir une nouvelle version complète
+de la base documentaire de chaque langue, contenant les anciens manuels et
+de nouvelles sources. Le système vérifie le mot de passe administrateur,
+AES-GCM, l'intégrité SQLite, la couverture des pages, la provenance,
+les index de recherche, le statut des données et chaque image.
 
-Les fichiers sont disponibles dans les livrables privés du propriétaire, pas dans ce dépôt. **Ne pas uploader l'archive ZIP globale en guise de pack** ; les fichiers doivent être attachés séparément, avec les noms et les tailles exactes du tableau.
+La publication actuelle reste désactivée : les champs FR et EN du
+manifeste indiquent toujours available=false. Les deux anciens packs chiffrés
+ne sont pas hébergés sur cette Release.
 
-Ces deux enveloppes sont chiffrées au format `MEMSDOC1` / AES-256-GCM avec le secret administrateur configuré dans GitHub MAJ. La vérification du déchiffrement a réussi hors ligne. Aucune information de mot de passe ne doit figurer dans les Releases, le code ou les logs.
+## Ajouter une nouvelle version autorisée
 
-## Opérations GitHub (administrateur du dépôt)
+1. Préparer un snapshot SQLite contrôlé, avec les anciens et nouveaux documents.
+2. Former le ZIP du snapshot et des images, puis le chiffrer en MEMSDOC1
+   avec le secret administrateur MAJ.
+3. Dans Actions, lancer « Préparer un dépôt de pack documentaire (brouillon privé) »
+   avec un nouveau tag, par exemple mems-doc-20261114-v2.
+4. Joindre le ou les fichiers MEMS-DOC-FR-*.encrypted,
+   MEMS-DOC-EN-*.encrypted, etc. à la Release brouillon.
+5. Ne rendre la Release publique qu'avec une autorisation de redistribution
+   écrite couvrant tous les documents, textes et images présents.
+6. Dans Actions, lancer « Activer les bases documentaires vérifiées sur le site MAJ »,
+   choisir la ou les langues et le nouveau tag, renseigner la référence
+   de l'autorisation et valider les contrôles.
+7. Après réussite, le manifeste est mis à jour et SESSION peut télécharger
+   et installer la nouvelle version avec sauvegarde de la précédente.
 
-1. Confirmer au préalable que le projet dispose du droit de distribuer les données techniques et les illustrations Rover incluses dans les packs. La possession d'un PDF et son chiffrement ne prouvent pas cette autorisation.
-2. Ouvrir le dépôt `mini56/ECU-Mems-Manager-Session-MAJ` → **Releases** → brouillon `mems-documentary-fr-en-20261113` → **Edit**.
-3. Ajouter les **deux fichiers `.encrypted`** comme pièces jointes, puis vérifier leurs noms et tailles. Ne pas les placer dans le code source ni les fichiers README du dépôt.
-4. Si la diffusion est autorisée, **Publish release**. La simple existence du brouillon n'active aucune mise à jour dans le programme.
-5. Ouvrir **Actions** → `Activer les bases documentaires vérifiées sur le site MAJ` → **Run workflow**. Choisir `both` et fournir la référence de l'autorisation écrite. Ne cocher l'attestation de droit de redistribution que si elle est exacte.
-6. Le workflow télécharge chaque pack depuis la Release et vérifie **SHA-256 exact**, **mot de passe administrateur**, **authentification AES-GCM**, **langue**, **pages constructeur**, **SQLite**, **procédures**, **index FTS** et **images**. Il ne modifie `manifest.json` qu'après réussite totale.
-7. Vérifier sur `manifest.json` que `documentary_bases.fr.available` et `documentary_bases.en.available` valent `true`, puis tester depuis **SESSION 140** : Vérifier → Télécharger → saisir le mot de passe administrateur → contrôle et installation → consulter la base FR/EN. Ne pas annoncer une installation sur le poste utilisateur sans ce test.
+## Tests réellement passés
 
-## Récupération
+- Site MAJ : run 43423084644, tests FR et EN, deux versions successives.
+- Site MAJ : run 43421683563, ajout de troisième manuel synthétique,
+  corruption refusée et conservation des documents existants.
+- SESSION : run 43422993264, compilation Linux et installation de deux
+  documents puis mise à jour vers trois documents avec sauvegarde.
+- Aucun nouveau Setup Windows contenant ces changements n'est publié.
 
-Une installation refusée (mauvais secret, pack altéré, base incomplète) doit laisser le système précédent intact. Ne pas modifier les bases ECU, les sessions ni les données expertes. Les anciennes bases documentaires sont conservées comme sauvegarde lors de l'installation d'un nouveau pack valide.
+## Limite encore ouverte
 
-Si le contenu n'est pas publiable, **laisser la Release en brouillon** et `available: false`. L'importation et l'utilisation privées ne donnent pas automatiquement le droit de publier les pages constructeur dans une Release GitHub publique.
+MEMS Forge possède déjà un dossier depot/ et une chaîne d'extraction/OCR PDF,
+mais il produit des packs candidats qui ne sont PAS des bases natives validées
+de SESSION. Le pont « nouveau PDF -> validation -> snapshot SQLite par langue
+-> pack chiffré » n'est pas encore automatisé de bout en bout.
 
-## Automatisations validées
+Il reste également à transférer réellement les packs binaires sur le site MAJ
+et à démontrer le téléchargement depuis un Setup Windows mis à jour.
 
-- [Contrôle du format double source et chiffrement](https://github.com/mini56/ECU-Mems-Manager-Session/actions/runs/43400776387)
-- [Installation native sur base française synthétique à deux documents](https://github.com/mini56/ECU-Mems-Manager-Session/actions/runs/43401165876)
-- [Test du manifeste, de l'authentification et de l'activation FR/EN](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/actions/runs/43403956332)
+Le dépôt MAJ et MEMS Forge sont publics. Ne pas y déposer de manuels
+constructeur soumis à droits sans autorisation de redistribution.
 
-Les tests utilisent des données synthétiques lorsqu'il s'agit de publier des résultats CI. Les deux fichiers réels ont été chiffrés et vérifiés séparément, mais ne sont **pas hébergés sur GitHub MAJ** à ce stade.
+Ne pas annoncer la fonction complète comme terminée avant un test réel
+avec un nouveau document sur Windows.
