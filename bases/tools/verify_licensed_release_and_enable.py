@@ -142,7 +142,12 @@ def validate_legacy_english(db: sqlite3.Connection) -> list[dict]:
     docs = db.execute(
         "SELECT document_id,total_pages,original_pdf_sha256 "
         "FROM source_documents ORDER BY document_id").fetchall()
-    require(len(docs) > 0, "ENGLISH_NO_DOCUMENTS")
+    # Legacy reader in SESSION accepts exactly the verified first AKM7169ENG
+    # edition. Further English sources must use the native multi-document schema.
+    require(len(docs) == 1 and docs[0][1] == 482 and
+            docs[0][2] ==
+            "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0",
+            "ENGLISH_LEGACY_EDITION_UNSUPPORTED_USE_NATIVE_SCHEMA")
     published = []
     for doc_id, pages, sha in docs:
         require(isinstance(doc_id, str) and doc_id and
@@ -158,9 +163,12 @@ def validate_legacy_english(db: sqlite3.Connection) -> list[dict]:
             "document_id": doc_id, "edition": doc_id,
             "source_pages": pages, "source_sha256": sha
         })
-    require(db.execute("SELECT COUNT(*) FROM procedures").fetchone()[0] > 0 and
-            db.execute("SELECT COUNT(*) FROM procedure_steps").fetchone()[0] > 0,
-            "ENGLISH_PROCEDURES_MISSING")
+    require(db.execute("SELECT COUNT(*) FROM source_page_discovery").fetchone()[0] == 482 and
+            db.execute("SELECT COUNT(*) FROM procedures").fetchone()[0] == 336 and
+            db.execute("SELECT COUNT(*) FROM procedure_steps").fetchone()[0] == 5055 and
+            db.execute("SELECT COUNT(*) FROM technical_values").fetchone()[0] == 630 and
+            db.execute("SELECT COUNT(*) FROM illustrations").fetchone()[0] == 316,
+            "ENGLISH_LEGACY_CONTENT_MISMATCH")
     return published
 
 
