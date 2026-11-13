@@ -23,3 +23,9 @@ La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.c
 Le dépôt MAJ est **public**. Les manuels, leurs illustrations et des transcriptions restent soumis aux droits de leur éditeur. Ne pas mettre les fichiers Rover sur une Release publique sans autorisation de redistribution confirmée, même chiffrés.
 
 Le manifeste deviendra `available: true` seulement après publication d'un pack autorisé et après validation de son intégrité, de sa langue, de son chiffrement, de sa provenance et de son installation par le programme. Les données ECU, personnelles et expertes restent totalement indépendantes.
+
+## Paquet chiffré prêt pour la distribution autorisée
+
+`MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted` — 28 098 898 octets — SHA-256 : `1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04`.
+
+La base privée réunit 391 pages, 6 387 entrées et 345 images, sans statut `review_required`. Le secret utilisé est celui de GitHub MAJ. **Le pack n'est pas encore hébergé sur ce dépôt public** faute d'autorisation de redistribution établie.
