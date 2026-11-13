@@ -1,0 +1,116 @@
+name: Publier les bases documentaires deposees
+on:
+  push:
+    branches: [main]
+    paths: ['bases/depot/*.encrypted', '.github/workflows/publish-documentary-depot.yml']
+permissions:
+  contents: write
+concurrency:
+  group: documentary-depot-publication
+  cancel-in-progress: false
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      - name: Reperer les nouveaux packs dans le dossier
+        shell: bash
+        env:
+          BASE_SHA: '${{ github.event.before }}'
+          HEAD_SHA: '${{ github.sha }}'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,re,subprocess,shutil
+          from datetime import datetime,timezone
+          from pathlib import Path
+          before=os.environ["BASE_SHA"]
+          head=os.environ["HEAD_SHA"]
+          if not re.fullmatch("[a-f0-9]{40}",before) or before=="0"*40:
+              raise SystemExit("INVALID_BASE_SHA")
+          paths=subprocess.check_output(["git","diff","--diff-filter=AMR","--name-only",
+              before,head,"--","bases/depot/"],text=True).splitlines()
+          chosen={}
+          filename=re.compile(r"MEMS-DOC-(FR|EN|PT|ES|IT|DE)-[A-Za-z0-9._-]+\.encrypted")
+          for path in paths:
+              source=Path(path)
+              match=filename.fullmatch(source.name)
+              if not match: continue
+              lang=match.group(1).lower()
+              if lang in chosen: raise SystemExit("DUPLICATE_LANGUAGE_IN_NEW_UPLOAD")
+              if not source.is_file() or source.stat().st_size<62:
+                  raise SystemExit("PACK_MISSING")
+              with source.open("rb") as stream:
+                  if stream.read(8)!=b"MEMSDOC1":
+                      raise SystemExit("NOT_ENCRYPTED_OR_LFS_POINTER")
+              chosen[lang]=source
+          with open(os.environ["GITHUB_ENV"],"a") as env:
+              env.write("SHOULD_PUBLISH="+("true" if chosen else "false")+"\n")
+              if chosen:
+                  stage=Path("candidate-assets")
+                  stage.mkdir()
+                  for src in chosen.values(): shutil.copyfile(src,stage/src.name)
+                  Path("selected-languages.txt").write_text(
+                      "".join(lang+"\n" for lang in sorted(chosen)))
+                  tag="mems-doc-"+datetime.now(timezone.utc).strftime("%Y%m%d")+"-"+head[:9]
+                  env.write("PUBLISH_TAG="+tag+"\n")
+          print("NEW_PACK_LANGUAGES", sorted(chosen))
+          PY
+      - name: Exiger les droits ecrits de redistribution
+        if: env.SHOULD_PUBLISH == 'true'
+        shell: bash
+        env:
+          RIGHTS_OK: '${{ vars.MEMS_DOCUMENTARY_REDISTRIBUTION_AUTHORIZED }}'
+          RIGHTS_REFERENCE: '${{ vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}'
+        run: |
+          set -euo pipefail
+          if [[ "$RIGHTS_OK" != true || ! "$RIGHTS_REFERENCE" =~ .{8} ]]; then
+            echo 'PUBLICATION_BLOQUEE_SANS_AUTORISATION_ECRITE'
+            exit 1
+          fi
+      - name: Installer le controle cryptographique
+        if: env.SHOULD_PUBLISH == 'true'
+        run: python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Verifier integralement chaque langue avant publication
+        if: env.SHOULD_PUBLISH == 'true'
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+          RIGHTS_REFERENCE: '${{ vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}'
+        run: |
+          set -euo pipefail
+          set +x
+          cp manifest.json verified-manifest.json
+          while IFS= read -r language; do
+            python3 bases/tools/verify_licensed_release_and_enable.py \
+              --manifest verified-manifest.json \
+              --asset-dir candidate-assets \
+              --tag "$PUBLISH_TAG" \
+              --language "$language" \
+              --rights-confirmed \
+              --rights-reference "$RIGHTS_REFERENCE"
+          done < selected-languages.txt
+      - name: Rendre les packs disponibles pour SESSION
+        if: env.SHOULD_PUBLISH == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          gh release create "$PUBLISH_TAG" candidate-assets/*.encrypted \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --draft --title "Bases documentaires $PUBLISH_TAG" \
+            --notes "Bases chiffrees controlees, avec autorisation de redistribution."
+          gh release edit "$PUBLISH_TAG" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ --draft=false
+          mv verified-manifest.json manifest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          git commit -m "Publier les bases documentaires $PUBLISH_TAG"
+          git push origin HEAD:main
+          echo 'DOCUMENTARY_RELEASE_AND_MANIFEST_UPDATED'
