@@ -1,0 +1,111 @@
+name: Activer les bases documentaires vérifiées sur le site MAJ
+on:
+  workflow_dispatch:
+    inputs:
+      manufacturer_redistribution_authorized:
+        description: Autorisation écrite pour redistribuer les manuels Rover confirmée
+        required: true
+        type: boolean
+        default: false
+      rights_authorization_reference:
+        description: Référence de l'autorisation écrite du titulaire des droits
+        required: true
+        type: string
+      language:
+        description: Langue du pack publié
+        required: true
+        type: choice
+        options: [both, fr, en]
+        default: both
+permissions:
+  contents: write
+concurrency:
+  group: official-documentary-maj-manifest
+  cancel-in-progress: false
+jobs:
+  verify-and-enable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Contrôler le consentement de redistribution
+        shell: bash
+        env:
+          RIGHTS_OK: '${{ inputs.manufacturer_redistribution_authorized }}'
+          RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
+        run: |
+          set -euo pipefail
+          if [[ "$RIGHTS_OK" != 'true' || "${#RIGHTS_REFERENCE}" -lt 8 ]]; then
+            echo 'AUTHORITATIVE_WRITTEN_REPRODUCTION_RIGHTS_REQUIRED'
+            exit 1
+          fi
+          echo 'RIGHTS_ATTESTATION_RECEIVED'
+      - name: Installer le moteur de déchiffrement
+        shell: bash
+        run: |
+          python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Contrôler la présence d'une Release non brouillon
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          gh release view mems-documentary-fr-en-20261113 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json isDraft,tagName \
+            --jq 'if (.isDraft == false and .tagName == "mems-documentary-fr-en-20261113") then "PUBLISHED_RELEASE_PRESENT" else error("RELEASE_NOT_PUBLIC") end'
+      - name: Télécharger les packs prévus depuis la vraie Release
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+          LANGUAGES: '${{ inputs.language }}'
+        run: |
+          set -euo pipefail
+          mkdir -p candidate-assets
+          tag=mems-documentary-fr-en-20261113
+          if [[ "$LANGUAGES" == "fr" || "$LANGUAGES" == "both" ]]; then
+            gh release download "$tag" \
+              --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --pattern MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted \
+              --dir candidate-assets
+          fi
+          if [[ "$LANGUAGES" == "en" || "$LANGUAGES" == "both" ]]; then
+            gh release download "$tag" \
+              --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --pattern MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted \
+              --dir candidate-assets
+          fi
+          ls -lh candidate-assets
+      - name: Contrôler AES-GCM, secret administrateur, PDF, SQLite et images
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+          RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
+          LANGUAGES: '${{ inputs.language }}'
+        run: |
+          set -euo pipefail
+          set +x
+          python3 bases/tools/verify_licensed_release_and_enable.py \
+            --manifest manifest.json \
+            --asset-dir candidate-assets \
+            --tag mems-documentary-fr-en-20261113 \
+            --language "$LANGUAGES" \
+            --rights-confirmed \
+            --rights-reference "$RIGHTS_REFERENCE"
+          python3 bases/tests/test_schema_multidoc.py
+      - name: Activer les mises à jour uniquement après tous les contrôles
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- manifest.json; then
+            echo MANIFEST_ALREADY_ACTIVE
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- manifest.json
+          git commit -m 'Activate only licensed, authenticated and verified MAJ documentary assets'
+          git push origin HEAD:main
+          echo FR_EN_DOCUMENTARY_PACKS_AVAILABLE_AFTER_FULL_VALIDATION
