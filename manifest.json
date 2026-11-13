@@ -21,15 +21,30 @@
     "fr": {
       "language": "fr",
       "description": "Français",
-      "available": false,
-      "version": null,
-      "release_url": null,
-      "sha256": null,
+      "available": true,
+      "version": "fr-mems-doc-20261113-139dd8833",
+      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-20261113-139dd8833/MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
+      "sha256": "1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04",
       "installation_password_required": true,
       "encrypted_package_required": true,
       "database_file": "mems_documentary_fr.sqlite",
-      "document_count": 0,
-      "published_documents": [],
+      "document_count": 2,
+      "published_documents": [
+        {
+          "document_id": "AKM7169FRE",
+          "source_revision": "MEMS-SPI-20P-ORIGINAL-FR-1993",
+          "edition": "AKM7169FRE",
+          "source_sha256": "37cd0434347fe4009963d075e4b91b0b21ebc905bae5657519a8080c3026d4f5",
+          "source_pages": 20
+        },
+        {
+          "document_id": "RCL0193FRE",
+          "source_revision": "source-original-auditee-371",
+          "edition": "RCL0193FRE",
+          "source_sha256": "0c7fef28d0d0f0673ba321d6625a019c005823103caa98afb3258114e1fec713",
+          "source_pages": 371
+        }
+      ],
       "planned_documents": [
         {
           "document_id": "rover-rcl0193",
@@ -64,15 +79,22 @@
     "en": {
       "language": "en",
       "description": "English",
-      "available": false,
-      "version": null,
-      "release_url": null,
-      "sha256": null,
+      "available": true,
+      "version": "en-mems-doc-20261113-139dd8833",
+      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-20261113-139dd8833/MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted",
+      "sha256": "10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab",
       "installation_password_required": true,
       "encrypted_package_required": true,
       "database_file": "mems_documentary_en.sqlite",
-      "document_count": 0,
-      "published_documents": [],
+      "document_count": 1,
+      "published_documents": [
+        {
+          "document_id": "rover-akm7169eng",
+          "edition": "rover-akm7169eng",
+          "source_pages": 482,
+          "source_sha256": "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0"
+        }
+      ],
       "planned_documents": [
         {
           "document_id": "rover-akm7169",
