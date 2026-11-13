@@ -1,5 +1,6 @@
 name: Publier les bases documentaires deposees
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -26,13 +27,21 @@ jobs:
         env:
           BASE_SHA: '${{ github.event.before }}'
           HEAD_SHA: '${{ github.sha }}'
+          RUN_EVENT: '${{ github.event_name }}'
         run: |
           set -euo pipefail
-          if [[ ! "$BASE_SHA" =~ ^[a-f0-9]{40}$ || "$BASE_SHA" =~ ^0+$ ]]; then
-            echo 'INVALID_PREVIOUS_COMMIT_SHA'
-            exit 1
+          if [[ "$RUN_EVENT" == "workflow_dispatch" ]]; then
+            find bases/depot -maxdepth 1 -type f \
+              \( -name '*.encrypted' -o -name '*.encrypted.part1' -o -name '*.encrypted.part2' \) \
+              | sort > changed-deposit-files.txt
+            echo 'MANUAL_REAUDIT_ALL_ALREADY_UPLOADED_PACKS'
+          else
+            if [[ ! "$BASE_SHA" =~ ^[a-f0-9]{40}$ || "$BASE_SHA" =~ ^0+$ ]]; then
+              echo 'INVALID_PREVIOUS_COMMIT_SHA'
+              exit 1
+            fi
+            git diff --diff-filter=AMR --name-only "$BASE_SHA" "$HEAD_SHA" -- bases/depot/ > changed-deposit-files.txt
           fi
-          git diff --diff-filter=AMR --name-only "$BASE_SHA" "$HEAD_SHA" -- bases/depot/ > changed-deposit-files.txt
           python3 bases/tools/assemble_deposit_parts.py \
             --depot bases/depot \
             --changed-list changed-deposit-files.txt \
