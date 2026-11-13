@@ -3,19 +3,23 @@ on:
   workflow_dispatch:
     inputs:
       manufacturer_redistribution_authorized:
-        description: Autorisation écrite pour redistribuer les manuels Rover confirmée
+        description: Droits écrits de redistribution confirmés
         required: true
         type: boolean
         default: false
       rights_authorization_reference:
-        description: Référence de l'autorisation écrite du titulaire des droits
+        description: Référence des autorisations écrites couvrant TOUS les documents publiés
+        required: true
+        type: string
+      release_tag:
+        description: Tag de la nouvelle Release contenant les packs chiffrés autorisés
         required: true
         type: string
       language:
-        description: Langue du pack publié
+        description: Langue du pack (both = français et anglais)
         required: true
         type: choice
-        options: [both, fr, en]
+        options: [both, fr, en, pt, es, it, de]
         default: both
 permissions:
   contents: write
@@ -25,64 +29,51 @@ concurrency:
 jobs:
   verify-and-enable:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
-      - name: Contrôler le consentement de redistribution
+      - name: Vérifier l'autorisation de redistribution
         shell: bash
         env:
           RIGHTS_OK: '${{ inputs.manufacturer_redistribution_authorized }}'
           RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
         run: |
           set -euo pipefail
-          if [[ "$RIGHTS_OK" != 'true' || "${#RIGHTS_REFERENCE}" -lt 8 ]]; then
-            echo 'AUTHORITATIVE_WRITTEN_REPRODUCTION_RIGHTS_REQUIRED'
+          if [[ "$RIGHTS_OK" != true || "${#RIGHTS_REFERENCE}" -lt 8 ]]; then
+            echo 'WRITTEN_REDISTRIBUTION_RIGHTS_REQUIRED'
             exit 1
           fi
-          echo 'RIGHTS_ATTESTATION_RECEIVED'
-      - name: Installer le moteur de déchiffrement
-        shell: bash
-        run: |
-          python3 -m pip install --user 'cryptography>=42,<47'
-      - name: Contrôler la présence d'une Release non brouillon
+          echo RIGHTS_ATTESTATION_RECEIVED
+      - name: Vérifier le tag, la Release et les packs
         shell: bash
         env:
           GH_TOKEN: '${{ github.token }}'
+          INPUT_TAG: '${{ inputs.release_tag }}'
         run: |
           set -euo pipefail
-          gh release view mems-documentary-fr-en-20261113 \
+          if [[ ! "$INPUT_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,43}$ ]]; then
+            echo INVALID_RELEASE_TAG
+            exit 1
+          fi
+          gh release view "$INPUT_TAG" \
             --repo mini56/ECU-Mems-Manager-Session-MAJ \
             --json isDraft,tagName \
-            --jq 'if (.isDraft == false and .tagName == "mems-documentary-fr-en-20261113") then "PUBLISHED_RELEASE_PRESENT" else error("RELEASE_NOT_PUBLIC") end'
-      - name: Télécharger les packs prévus depuis la vraie Release
-        shell: bash
-        env:
-          GH_TOKEN: '${{ github.token }}'
-          LANGUAGES: '${{ inputs.language }}'
-        run: |
-          set -euo pipefail
+            --jq 'if (.isDraft == false) then "PUBLISHED_RELEASE_PRESENT" else error("RELEASE_IS_DRAFT") end'
           mkdir -p candidate-assets
-          tag=mems-documentary-fr-en-20261113
-          if [[ "$LANGUAGES" == "fr" || "$LANGUAGES" == "both" ]]; then
-            gh release download "$tag" \
-              --repo mini56/ECU-Mems-Manager-Session-MAJ \
-              --pattern MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted \
-              --dir candidate-assets
-          fi
-          if [[ "$LANGUAGES" == "en" || "$LANGUAGES" == "both" ]]; then
-            gh release download "$tag" \
-              --repo mini56/ECU-Mems-Manager-Session-MAJ \
-              --pattern MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted \
-              --dir candidate-assets
-          fi
-          ls -lh candidate-assets
-      - name: Contrôler AES-GCM, secret administrateur, PDF, SQLite et images
+          gh release download "$INPUT_TAG" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --pattern 'MEMS-DOC-*.encrypted' --dir candidate-assets
+          test -n "$(find candidate-assets -maxdepth 1 -type f -name '*.encrypted' -print -quit)"
+      - name: Installer le moteur de déchiffrement
+        run: python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Vérifier et activer la nouvelle version de chaque langue
         shell: bash
         env:
           MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
           RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
+          INPUT_TAG: '${{ inputs.release_tag }}'
           LANGUAGES: '${{ inputs.language }}'
         run: |
           set -euo pipefail
@@ -90,22 +81,22 @@ jobs:
           python3 bases/tools/verify_licensed_release_and_enable.py \
             --manifest manifest.json \
             --asset-dir candidate-assets \
-            --tag mems-documentary-fr-en-20261113 \
+            --tag "$INPUT_TAG" \
             --language "$LANGUAGES" \
             --rights-confirmed \
             --rights-reference "$RIGHTS_REFERENCE"
           python3 bases/tests/test_schema_multidoc.py
-      - name: Activer les mises à jour uniquement après tous les contrôles
+      - name: Mettre à jour le manifeste uniquement après validation
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet -- manifest.json; then
-            echo MANIFEST_ALREADY_ACTIVE
+            echo MANIFEST_ALREADY_CURRENT
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- manifest.json
-          git commit -m 'Activate only licensed, authenticated and verified MAJ documentary assets'
-          git push origin HEAD:main
-          echo FR_EN_DOCUMENTARY_PACKS_AVAILABLE_AFTER_FULL_VALIDATION
+          git commit -m 'Publish next verified documentary snapshot'
+          git push origin HEAD:${{ github.ref_name }}
+          echo DOCUMENTARY_UPDATE_AVAILABLE
