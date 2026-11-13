@@ -1,0 +1,83 @@
+name: Tester installation reelle des deux bases sur Windows
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bases/tests/windows/**'
+      - '.github/workflows/verify-real-documentary-windows-install.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install-both:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - name: Charger les bases chiffrées sans publier
+        uses: actions/checkout@v4
+        with:
+          path: maj-source
+      - name: Charger le véritable code du programme SESSION
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: rave-fr-source-sqlite-20261112
+          path: session-source
+      - name: Préparer Python et Qt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
+          if($LASTEXITCODE -ne 0){throw 'AQT_NOT_AVAILABLE'}
+          $sevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
+          python -m aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O C:\Qt --external $sevenZip
+          if($LASTEXITCODE -ne 0){throw 'QT_INSTALL_FAILED'}
+      - name: Reconstituer les deux vrais fichiers originaux
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $depot='maj-source/bases/depot'
+          $fr='MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted'
+          $en='MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted'
+          New-Item -ItemType Directory -Force candidate | Out-Null
+          @'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'maj-source/bases/tools')
+          from assemble_deposit_parts import collect_deposits
+          data=Path('maj-source/bases/depot')
+          names=[
+           'bases/depot/MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted.part1',
+           'bases/depot/MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted.part2',
+           'bases/depot/MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted']
+          items=collect_deposits(data,names,Path('candidate'))
+          assert set(items)=={'fr','en'},items
+          assert items['fr']['sha256']=='1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04'
+          assert items['en']['sha256']=='10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab'
+          print('ACTUAL_FR_EN_PACKS_RECONSTRUCTED_AND_HASHED')
+          '@ | python -
+          if($LASTEXITCODE -ne 0){throw 'REAL_PACK_ASSEMBLY_FAILED'}
+      - name: Compiler le vrai déchiffreur et l'installateur Windows SESSION
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $source=(Resolve-Path session-source).Path
+          cmake -S maj-source/bases/tests/windows -B build-real-doc -A x64 "-DSESSION_SOURCE_ROOT=$source" "-DCMAKE_PREFIX_PATH=C:/Qt/5.15.2/msvc2019_64"
+          if($LASTEXITCODE -ne 0){throw 'DOCUMENTARY_CMAKE_FAILED'}
+          cmake --build build-real-doc --config Release --target real_documentary_install --parallel
+          if($LASTEXITCODE -ne 0){throw 'DOCUMENTARY_WINDOWS_COMPILE_FAILED'}
+      - name: Installer les deux bases réelles dans un profil temporaire
+        shell: pwsh
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          $ErrorActionPreference='Stop'
+          $qt='C:\Qt\5.15.2\msvc2019_64'
+          $bin=(Resolve-Path build-real-doc/Release).Path
+          & "$qt/bin/windeployqt.exe" --release --compiler-runtime --no-translations --dir $bin "$bin/real_documentary_install.exe"
+          if($LASTEXITCODE -ne 0){throw 'QT_DEPLOY_FAILED'}
+          $fr=(Resolve-Path candidate/MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted).Path
+          $en=(Resolve-Path candidate/MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted).Path
+          & "$bin/real_documentary_install.exe" $fr $en
+          if($LASTEXITCODE -ne 0){throw 'REAL_DOCUMENTARY_WINDOWS_INSTALL_FAILED'}
+          Write-Host 'REAL_FR_EN_DOCUMENTARY_INSTALLED_AND_READABLE_NO_PUBLICATION'
