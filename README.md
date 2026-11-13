@@ -64,3 +64,11 @@ La présence d'une édition RAVE ne donne pas automatiquement le droit de redist
 Le programme installé doit aussi proposer une **installation hors ligne** des packs vérifiés.
 
 Le code source du programme reste dans [ECU-Mems-Manager-Session](https://github.com/mini56/ECU-Mems-Manager-Session). Ce dépôt ne contient pas son code source.
+
+### Packs FR et EN — préparation du 13 novembre 2026
+
+La base française à deux documents (RCL0193FRE + AKM7169FRE SPi, 391 pages, 6 387 entrées, 345 images) et la base anglaise AKM7169ENG (482 pages) ont été chiffrées au format `MEMSDOC1` avec le **secret administrateur GitHub MAJ**. Les fichiers ont passé les contrôles AES-GCM et SHA-256.
+
+Une **Release brouillon** `mems-documentary-fr-en-20261113` existe ; [création vérifiée sur GitHub Actions](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/actions/runs/43403631823). Le workflow d'activation est prêt, et son [test FR/EN est vert](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/actions/runs/43403956332).
+
+**Les fichiers chiffrés ne sont pas encore hébergés sur cette Release ; le manifeste reste donc à `available: false`.** Il faut établir l'autorisation de redistribution des manuels constructeurs avant toute publication publique. Le chiffrement n'est pas une licence.
