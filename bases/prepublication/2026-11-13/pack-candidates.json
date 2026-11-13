@@ -6,7 +6,7 @@
   "protected_format": "MEMSDOC1",
   "encryption": "AES-256-GCM",
   "language_policy": "one SQLite database per language",
-  "publication_status": "prepared_offline_not_published",
+  "publication_status": "genuine_maj_secret_encrypted_offline_assets_prepared_not_hosted",
   "public_redistribution_rights": "not_verified",
   "do_not_set_available_true_until": "assets are actually hosted on an authorized release with verified hashes and rights",
   "packs": [
@@ -61,7 +61,12 @@
       "technical_values": 630,
       "sqlite_integrity": "ok",
       "foreign_key_issues": 0,
-      "manufacturer_pdf_embedded": false
+      "manufacturer_pdf_embedded": false,
+      "latest_real_owner_secret_asset": "MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted",
+      "latest_real_owner_secret_asset_size": 6731477,
+      "latest_real_owner_secret_sha256": "10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab",
+      "latest_real_owner_secret_encrypted": true,
+      "latest_real_owner_secret_authenticated_roundtrip_verified": true
     }
   ],
   "note": "This is metadata only; these encrypted assets have not been attached to GitHub Releases. A package encrypted with an older local secret must not be assumed to match the secret currently configured in GitHub MAJ.",
@@ -90,13 +95,19 @@
     "database_sha256": "b314a275fec750fb4a073b2fa3a1d14e09b03e63f993226908da8041accefb19",
     "private_source_zip_sha256": "fc1ca6c19a2b5b4e4bb93c49546f0a2278de07de6e6b65c5c8e21f52a8d9d372",
     "private_source_zip_bytes": 28098837,
-    "new_encrypted_pack_sha256": null,
-    "new_encrypted_release_asset": null,
-    "encrypted_with_MAJ_owner_secret": false,
+    "new_encrypted_pack_sha256": "1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04",
+    "new_encrypted_release_asset": "MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
+    "encrypted_with_MAJ_owner_secret": true,
     "public_release_status": "not_published",
     "manufacturer_public_redistribution_rights": "not_confirmed",
     "integrity": "ok",
     "foreign_key_issues": 0,
-    "note": "Never advertise the obsolete RCL-only encrypted ZIP as this new two-document release. Encrypt this verified source with the actual MAJ publisher secret in an authorized process."
-  }
+    "note": "Never advertise the obsolete RCL-only encrypted ZIP as this new two-document release. Encrypt this verified source with the actual MAJ publisher secret in an authorized process.",
+    "encrypted_size": 28098898,
+    "aes_gcm_authenticated_roundtrip_verified": true,
+    "tamper_and_wrong_key_rejected": true,
+    "temporary_key_exchange": "GitHub MAJ administrator secret derived in Action, key RSA-OAEP wrapped for offline AES encryption; ephemeral private key destroyed"
+  },
+  "artifact_distribution_blocker": "Public GitHub Releases cannot host manufacturer-owned transcriptions without confirmed redistribution rights; no license has been provided and public assets do not yet exist.",
+  "owner_password_known_to_assistant": false
 }
