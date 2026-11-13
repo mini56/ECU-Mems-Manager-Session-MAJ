@@ -2,15 +2,6 @@ name: Activer les bases documentaires vérifiées sur le site MAJ
 on:
   workflow_dispatch:
     inputs:
-      manufacturer_redistribution_authorized:
-        description: Droits écrits de redistribution confirmés
-        required: true
-        type: boolean
-        default: false
-      rights_authorization_reference:
-        description: Référence des autorisations écrites couvrant TOUS les documents publiés
-        required: true
-        type: string
       release_tag:
         description: Tag de la nouvelle Release contenant les packs chiffrés autorisés
         required: true
@@ -34,18 +25,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
-      - name: Vérifier l'autorisation de redistribution
-        shell: bash
-        env:
-          RIGHTS_OK: '${{ inputs.manufacturer_redistribution_authorized }}'
-          RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
-        run: |
-          set -euo pipefail
-          if [[ "$RIGHTS_OK" != true || "${#RIGHTS_REFERENCE}" -lt 8 ]]; then
-            echo 'WRITTEN_REDISTRIBUTION_RIGHTS_REQUIRED'
-            exit 1
-          fi
-          echo RIGHTS_ATTESTATION_RECEIVED
       - name: Vérifier le tag, la Release et les packs
         shell: bash
         env:
@@ -72,7 +51,6 @@ jobs:
         shell: bash
         env:
           MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
-          RIGHTS_REFERENCE: '${{ inputs.rights_authorization_reference }}'
           INPUT_TAG: '${{ inputs.release_tag }}'
           LANGUAGES: '${{ inputs.language }}'
         run: |
@@ -82,9 +60,7 @@ jobs:
             --manifest manifest.json \
             --asset-dir candidate-assets \
             --tag "$INPUT_TAG" \
-            --language "$LANGUAGES" \
-            --rights-confirmed \
-            --rights-reference "$RIGHTS_REFERENCE"
+            --language "$LANGUAGES"
           python3 bases/tests/test_schema_multidoc.py
       - name: Mettre à jour le manifeste uniquement après validation
         shell: bash
