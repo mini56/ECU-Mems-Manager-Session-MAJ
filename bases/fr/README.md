@@ -14,6 +14,10 @@ Les fichiers de travail existent hors de ce dépôt. En revanche, **aucune base 
 
 La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.com/mini56/ECU-Mems-Manager-Session/tree/rave-fr-source-sqlite-20261112) contient le lecteur C++ des bases par langue et l'installation hors ligne d'un ZIP avec mot de passe. Le [Setup SESSION 140 de test](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/tag/mems-session-140-admin-encrypted-documentary-TEST) est disponible, sans base constructeur embarquée. Il refuse les ZIP non chiffrés et demande exclusivement le mot de passe fixé par l'administrateur.
 
+## Prochaine priorité de relecture
+
+Le chapitre original **AKM7169FRE — MEMS injection monopoint (20 pages)** est le prochain travail prioritaire, immédiatement après la préparation des packs français et anglais déjà constitués. [Voir l'inventaire de relecture et les contrôles réalisés](AKM7169FRE-SPI-PRIORITE.md).
+
 ## Avant une publication publique
 
 Le dépôt MAJ est **public**. Les manuels, leurs illustrations et des transcriptions restent soumis aux droits de leur éditeur. Ne pas mettre les fichiers Rover sur une Release publique sans autorisation de redistribution confirmée, même chiffrés.
