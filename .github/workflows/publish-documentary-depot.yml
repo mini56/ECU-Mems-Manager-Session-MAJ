@@ -57,7 +57,7 @@ jobs:
               if len(parts)>2 and parts[2].lower() in disabled:
                   files.append(path.as_posix())
           Path("changed-deposit-files.txt").write_text(
-              "".join(p+"\\n" for p in files),encoding="utf-8")
+              "".join(p+"\n" for p in files),encoding="utf-8")
           print("INITIAL_UNPUBLISHED_PACKS",len(files))
           PY
             fi
