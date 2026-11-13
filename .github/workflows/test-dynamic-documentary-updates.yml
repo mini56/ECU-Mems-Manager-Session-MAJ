@@ -1,0 +1,21 @@
+name: Tester les mises à jour documentaires successives
+on:
+  push:
+    branches: [fix-multidocument-updates-20261113]
+    paths:
+      - 'bases/tools/verify_licensed_release_and_enable.py'
+      - 'bases/tests/test_dynamic_documentary_updates.py'
+      - '.github/workflows/test-dynamic-documentary-updates.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer cryptographie
+        run: python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Tester trois documents, deux mises à jour, refus des corruptions
+        run: python3 -m unittest discover -s bases/tests -p test_dynamic_documentary_updates.py -v
