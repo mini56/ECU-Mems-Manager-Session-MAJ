@@ -2,21 +2,21 @@
 
 **Langue :** `fr` — une base autonome regroupant plusieurs documents constructeur originaux.
 
-## État réel au 12 novembre 2026
+## État réel au 13 novembre 2026
 
 | Source constructeur | Édition | Données préparées | Sur le site MAJ |
 | --- | --- | --- | --- |
 | Manuel français Mini | RCL0193FRE, 371 pages | SQLite locale relue : 5 958 entrées et 325 fac-similés | **Non publiée** |
-| Chapitre MEMS SPi | AKM7169FRE, 20 pages | Extrait français original disponible, OCR non intégralement relu | **Non publiée** |
+| Chapitre MEMS SPi | AKM7169FRE, 20 pages | Relecture du chapitre terminée : 20 opérations, 267 étapes, 22 valeurs, 19 descriptions, 20 images | **Non publiée** |
 | Manuel AKM7169FRE complet | Autres chapitres | Source complète non retrouvée | Non disponible |
 
-Les fichiers de travail existent hors de ce dépôt. En revanche, **aucune base ne peut actuellement être téléchargée avec le bouton MAJ de SESSION 138**, et le manifeste indique donc correctement `available: false`.
+Les bases privées sont constituées. La SQLite française réunit désormais **391 pages, 6 387 entrées et 345 images**. Aucune base constructeur n'est encore téléchargeable depuis ce site public : le manifeste indique donc toujours `available: false`.
 
 La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.com/mini56/ECU-Mems-Manager-Session/tree/rave-fr-source-sqlite-20261112) contient le lecteur C++ des bases par langue et l'installation hors ligne d'un ZIP avec mot de passe. Le [Setup SESSION 140 de test](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/tag/mems-session-140-admin-encrypted-documentary-TEST) est disponible, sans base constructeur embarquée. Il refuse les ZIP non chiffrés et demande exclusivement le mot de passe fixé par l'administrateur.
 
-## Prochaine priorité de relecture
+## AKM7169FRE SPi : chantier documentaire achevé
 
-Le chapitre original **AKM7169FRE — MEMS injection monopoint (20 pages)** est le prochain travail prioritaire, immédiatement après la préparation des packs français et anglais déjà constitués. [Voir l'inventaire de relecture et les contrôles réalisés](AKM7169FRE-SPI-PRIORITE.md).
+[Voir le résultat de la relecture, la provenance, les comptes et les contrôles](AKM7169FRE-SPI-PRIORITE.md). Le manuscrit original de 20 pages est intégralement conservé avec les pages et les illustrations ; les 267 étapes de réparation ont été structurées. Aucun statut `review_required` ne reste dans la nouvelle SQLite privée.
 
 ## Avant une publication publique
 
