@@ -4,6 +4,9 @@ Ce dépôt regroupe **les mises à jour du programme** et, à terme, **une base 
 
 ## Avancement vérifié — 12 novembre 2026
 
+**Mise à jour du 13 novembre 2026 :** [SESSION 140 de test disponible](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/tag/mems-session-140-admin-encrypted-documentary-TEST). L'importation de bases non chiffrées et la création d'un mot de passe par l'utilisateur ont été supprimées. Windows a validé le chiffrement AES-GCM et l'installation sur données de test. Les packs des manuels constructeurs ne sont pas encore publiés, et le secret `MEMS_DOCUMENTARY_PUBLISH_PASSWORD` doit être accessible comme **Repository secret Actions** du workflow de fabrication.
+
+
 - **RCL0193FRE français** : base SQLite locale relue disponible au propriétaire, **371 pages, 5 958 entrées, 325 fac-similés**. Détails : [bases/fr/](bases/fr/).
 - **AKM7169FRE français** : uniquement les **20 pages originales du chapitre MEMS SPi** ; autres chapitres non retrouvés ; OCR non entièrement relu.
 - **AKM7169ENG anglais** : base SQLite source originale reconstruite et testée, **482 pages**. Détails : [bases/en/](bases/en/).
