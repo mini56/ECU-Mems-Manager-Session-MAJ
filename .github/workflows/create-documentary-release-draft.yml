@@ -1,0 +1,66 @@
+name: Préparer la Release brouillon FR et EN (sans manuels publics)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/create-documentary-release-draft.yml'
+permissions:
+  contents: write
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Préparer la Release privée non publiée
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          tag=mems-documentary-fr-en-20261113
+          if gh release view "$tag" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo 'DOCUMENTARY_RELEASE_DRAFT_ALREADY_EXISTS'
+            exit 0
+          fi
+          cat > release-notes.txt <<'NOTES'
+          PACKS DOCUMENTAIRES — PREPARATION, NON PUBLIEE
+
+          Format de distribution : MEMSDOC1 (AES-256-GCM), mot de passe choisi
+          par le propriétaire du site MAJ dans GitHub Actions Secrets.
+
+          Français : RCL0193FRE (371 pages) et AKM7169FRE SPi (20 pages).
+          Total : 391 pages, 6 387 entrées documentaires, 345 illustrations.
+          Asset attendu :
+          MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted
+          SHA-256 attendu :
+          1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04
+
+          Anglais : AKM7169ENG, 482 pages.
+          Asset attendu :
+          MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted
+          SHA-256 attendu :
+          10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab
+
+          AVERTISSEMENT : il faut avoir les droits écrits de redistribution des
+          textes, pages et illustrations du constructeur Rover pour publier.
+          Un mot de passe n'autorise pas, à lui seul, la reproduction publique.
+
+          Ne pas publier ce brouillon avec des fichiers manquants ou non validés.
+          Lorsque les assets autorisés ont été placés sur cette Release,
+          publier puis lancer le workflow :
+          'Activer les bases documentaires vérifiées sur le site MAJ'.
+          Il contrôlera SHA-256, le secret du propriétaire, l'authentification
+          AES-GCM, les identités des manuels, SQLite, les 345 illustrations,
+          les procédures SPi et l'intégrité des index, avant d'activer
+          le bouton de téléchargement dans manifest.json.
+          NOTES
+          gh release create "$tag" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title "Bases documentaires FR + EN pour MEMS Manager — PREPARATION" \
+            --notes-file release-notes.txt \
+            --draft
+          gh release view "$tag" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json isDraft,tagName,assets \
+            --jq '{tag:.tagName,draft:.isDraft,asset_count:(.assets | length)}'
