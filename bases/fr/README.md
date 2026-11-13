@@ -12,7 +12,7 @@
 
 Les fichiers de travail existent hors de ce dépôt. En revanche, **aucune base ne peut actuellement être téléchargée avec le bouton MAJ de SESSION 138**, et le manifeste indique donc correctement `available: false`.
 
-La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.com/mini56/ECU-Mems-Manager-Session/tree/rave-fr-source-sqlite-20261112) contient le lecteur C++ des bases par langue et l'installation hors ligne d'un ZIP avec mot de passe. Un Setup SESSION 139 de test est en cours de compilation/validation, sans base constructeur embarquée.
+La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.com/mini56/ECU-Mems-Manager-Session/tree/rave-fr-source-sqlite-20261112) contient le lecteur C++ des bases par langue et l'installation hors ligne d'un ZIP avec mot de passe. Le [Setup SESSION 140 de test](https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/tag/mems-session-140-admin-encrypted-documentary-TEST) est disponible, sans base constructeur embarquée. Il refuse les ZIP non chiffrés et demande exclusivement le mot de passe fixé par l'administrateur.
 
 ## Avant une publication publique
 
