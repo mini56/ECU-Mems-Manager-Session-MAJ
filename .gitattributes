@@ -1,1 +1,2 @@
-bases/depot/*.encrypted filter=lfs diff=lfs merge=lfs -text
+# Les packs documentaires de plus de 25 Mo sont déposés en deux morceaux .part1/.part2.
+# Les morceaux restent de simples blobs GitHub : Git LFS n'est pas nécessaire.
