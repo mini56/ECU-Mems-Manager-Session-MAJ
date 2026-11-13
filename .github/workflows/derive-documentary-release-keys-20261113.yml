@@ -1,0 +1,47 @@
+name: Préparer les clés de chiffrement MEMSDOC1 autorisées par MAJ
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/derive-documentary-release-keys-20261113.yml'
+permissions:
+  contents: read
+jobs:
+  securely-wrap-derived-keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Préparer RSA-OAEP sans divulguer le secret administrateur
+        run: python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Envelopper deux clés spécifiques aux packs FR et EN
+        shell: bash
+        env:
+          PUBLISH_SECRET: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+          OWNER_RECIPIENT_PUB_B64: 'MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAnpLkzbaB4NR/EC9MF98czYJnE7WQO1NvIW6rvIgt2KQgAXBPk60XzF0rblo2Bl5/P24bvBJWJiixQz/2IbhpRYnooxVQBeqzcY/D1wDnvkIes447l4m5f2XsWdhNhX9cWzXnjncYkfkipRD52FXD+oSaD4D9ja/PKnSz/Y3cl7ellVVhZ+2Lubg/0MpthaAXC4FJWsGO6EAh/oezJYXglQwdQ3XwapiNalX+HxVf9cA687KILqj9+70O35aF4FK+nSGcTILwJUlXzokzQ7gZkTnbMvzieS4eHem8QOCrLn0k4A9bACjDtGi25e/11flhQxgm15GZhtXPEkFloX6a/uw5U6Dht/EKuspuOmPF0+/j4ZiUMl1K7JroWAl07V/Q7Rbc0Io496/mrbPd+zes4z6bQmYh8zrKifiST7i8IpjsL6esgUOCOYDp5OpDAupaeY9kPFyoX6cWuAENiUdyUPSvvjjleP6pNuCARRiwBtikf8YjS7L4C8jIe7TWPJ+nAgMBAAE='
+          FR_SALT_HEX: '1e030f306cd9b180f1a384b9c1d2b04e'
+          EN_SALT_HEX: 'efe766a90c55f9815163b2cec0964e21'
+        run: |
+          set -euo pipefail
+          set +x
+          python3 - <<'PY'
+          import os,base64,hashlib
+          from cryptography.hazmat.primitives import serialization,hashes
+          from cryptography.hazmat.primitives.asymmetric import padding
+          secret=os.environ["PUBLISH_SECRET"].encode("utf-8")
+          if len(secret)<12:
+              raise RuntimeError("MAJ_PUBLISH_SECRET_MISSING_OR_TOO_SHORT")
+          pub=serialization.load_der_public_key(
+              base64.b64decode(os.environ["OWNER_RECIPIENT_PUB_B64"]))
+          assert pub.key_size>=3072
+          label=b"MEMS_DOC_MAJ_RELEASE_KEY_20261113"
+          for language in ("FR","EN"):
+              salt=bytes.fromhex(os.environ[language+"_SALT_HEX"])
+              derived=hashlib.pbkdf2_hmac("sha256",secret,salt,210000,32)
+              sealed=pub.encrypt(derived,padding.OAEP(
+                  mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                  algorithm=hashes.SHA256(),label=label))
+              print(language+"_SEALED_KEY_RSA_OAEP="+base64.b64encode(sealed).decode())
+          del secret
+          print("MAJ_SECRET_DERIVATION_SEALED_TO_EPHEMERAL_PUBLIC_KEY_PASS")
+          print("NO_PUBLISHER_SECRET_OR_PLAINTEXT_KEY_IN_LOGS")
+          PY
