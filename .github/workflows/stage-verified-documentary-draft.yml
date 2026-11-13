@@ -1,0 +1,96 @@
+name: Preparer les deux bases verifiees en Release brouillon
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stage-verified-documentary-draft.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  stage-verified:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Installer les controles cryptographiques
+        run: python3 -m pip install --user 'cryptography>=42,<47'
+      - name: Reconstituer et authentifier les deux bases originales
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          set -euo pipefail
+          set +x
+          python3 - <<'PY'
+          import hashlib,importlib.util,os
+          from pathlib import Path
+          def load(name,path):
+              spec=importlib.util.spec_from_file_location(name,path)
+              module=importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              return module
+          assembler=load("assemble",Path("bases/tools/assemble_deposit_parts.py"))
+          verifier=load("verify",Path("bases/tools/verify_licensed_release_and_enable.py"))
+          password=os.environ.get("MEMS_DOCUMENTARY_PUBLISH_PASSWORD", "")
+          if len(password)<12:
+              raise SystemExit("OWNER_PASSWORD_NOT_CONFIGURED")
+          root=Path("bases/depot")
+          names=(
+              ("fr","MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
+               "1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04"),
+              ("en","MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted",
+               "10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab"),
+          )
+          changed=[]
+          for lang,name,sha in names:
+              if (root/name).is_file():
+                  changed.append("bases/depot/"+name)
+              else:
+                  changed.extend(("bases/depot/"+name+".part1",
+                                  "bases/depot/"+name+".part2"))
+          packed=assembler.collect_deposits(root,changed,Path("draft-assets"))
+          if set(packed)!={"fr","en"}:
+              raise SystemExit("BOTH_BASES_REQUIRED")
+          for lang,name,expected in names:
+              if packed[lang]["sha256"]!=expected:
+                  raise SystemExit("SHA_MISMATCH_"+lang)
+              sha,docs=verifier.validate_encrypted(
+                  Path("draft-assets")/name,lang,password)
+              if sha!=expected or not docs:
+                  raise SystemExit("INVALID_PACK_"+lang)
+              print("VERIFIED_FOR_DRAFT",lang,"documents",len(docs),"sha256",sha)
+          print("BOTH_PACKS_AUTHENTICATED_FOR_UNPUBLISHED_DRAFT")
+          PY
+      - name: Joindre les packs a la Release BROUILLON sans publier
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          TAG=mems-documentary-fr-en-20261113
+          if gh release view "$TAG" \
+               --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            state="$(gh release view "$TAG" \
+              --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --json isDraft --jq '.isDraft')"
+            if [[ "$state" != true ]]; then
+              echo "EXISTING_RELEASE_MUST_BE_DRAFT"
+              exit 1
+            fi
+          else
+            gh release create "$TAG" \
+              --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --draft \
+              --title "Bases documentaires FR et EN — préparation" \
+              --notes "Fichiers vérifiés. Brouillon non publié : autorisation de redistribution préalable obligatoire."
+          fi
+          gh release upload "$TAG" draft-assets/*.encrypted \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ --clobber
+          gh release view "$TAG" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json isDraft,tagName,assets \
+            --jq '{tag:.tagName,draft:.isDraft,assets:[.assets[].name]}'
+          echo "FR_EN_DRAFT_ASSETS_STAGED_NOT_PUBLISHED"
