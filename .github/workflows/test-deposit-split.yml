@@ -1,0 +1,20 @@
+name: Tester le depot des bases en deux morceaux
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bases/tools/assemble_deposit_parts.py'
+      - 'bases/tests/test_assemble_deposit_parts.py'
+      - '.github/workflows/publish-documentary-depot.yml'
+      - '.github/workflows/test-deposit-split.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tester la coupure de 28 Mo et le remontage exact
+        run: python3 -m unittest discover -s bases/tests -p test_assemble_deposit_parts.py -v
