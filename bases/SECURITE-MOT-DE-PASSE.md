@@ -14,7 +14,7 @@ n'installe rien et laisse la base existante intacte.
 
 1. Choisir personnellement un secret fort d'au moins 12 caractères, **hors
    de ChatGPT**, de l'historique Git et des fichiers de documentation.
-2. Dans le dépôt GitHub de **construction privé**, aller dans
+2. Dans le dépôt GitHub dont tu administres les secrets de construction (par exemple le dépôt du programme), aller dans
    **Settings → Secrets and variables → Actions → New repository secret**.
 3. Nommer le secret `MEMS_DOCUMENTARY_PUBLISH_PASSWORD`.
 4. L'outil `tools/pack_mems_documentary.py` du dépôt du programme récupère
