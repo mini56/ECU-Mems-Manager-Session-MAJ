@@ -37,7 +37,9 @@
           "document_id": "AKM7169FRE",
           "reason": "20-page SPi excerpt is not fully reviewed"
         }
-      ]
+      ],
+      "superseded_by_two_document_private_sqlite": true,
+      "do_not_publish_as_updated_combined_database": true
     },
     {
       "language": "en",
@@ -62,5 +64,39 @@
       "manufacturer_pdf_embedded": false
     }
   ],
-  "note": "This is metadata only; these encrypted assets have not been attached to GitHub Releases. A package encrypted with an older local secret must not be assumed to match the secret currently configured in GitHub MAJ."
+  "note": "This is metadata only; these encrypted assets have not been attached to GitHub Releases. A package encrypted with an older local secret must not be assumed to match the secret currently configured in GitHub MAJ.",
+  "new_fr_two_document_candidate": {
+    "language": "fr",
+    "edition": "RCL0193FRE + AKM7169FRE SPi 20p",
+    "source_documents": [
+      {
+        "document_id": "RCL0193FRE",
+        "pages": 371
+      },
+      {
+        "document_id": "AKM7169FRE",
+        "pages": 20
+      }
+    ],
+    "document_count": 2,
+    "physical_pages": 391,
+    "documentary_entries": 6387,
+    "manufacturer_images": 345,
+    "reviewed_numbered_spI_steps": 267,
+    "technical_spI_values": 22,
+    "description_spI_sections": 19,
+    "reviewed_status_remaining": 0,
+    "database_file": "mems_documentary_fr.sqlite",
+    "database_sha256": "b314a275fec750fb4a073b2fa3a1d14e09b03e63f993226908da8041accefb19",
+    "private_source_zip_sha256": "fc1ca6c19a2b5b4e4bb93c49546f0a2278de07de6e6b65c5c8e21f52a8d9d372",
+    "private_source_zip_bytes": 28098837,
+    "new_encrypted_pack_sha256": null,
+    "new_encrypted_release_asset": null,
+    "encrypted_with_MAJ_owner_secret": false,
+    "public_release_status": "not_published",
+    "manufacturer_public_redistribution_rights": "not_confirmed",
+    "integrity": "ok",
+    "foreign_key_issues": 0,
+    "note": "Never advertise the obsolete RCL-only encrypted ZIP as this new two-document release. Encrypt this verified source with the actual MAJ publisher secret in an authorized process."
+  }
 }
