@@ -1,6 +1,16 @@
 name: Publier les bases documentaires deposees
 on:
   workflow_dispatch:
+    inputs:
+      manufacturer_redistribution_authorized:
+        description: Confirmer les droits ecrits pour tous les documents
+        required: true
+        type: boolean
+        default: false
+      rights_authorization_reference:
+        description: Reference de l'autorisation ecrite
+        required: true
+        type: string
   push:
     branches: [main]
     paths:
@@ -64,8 +74,8 @@ jobs:
         if: env.SHOULD_PUBLISH == 'true'
         shell: bash
         env:
-          RIGHTS_OK: '${{ vars.MEMS_DOCUMENTARY_REDISTRIBUTION_AUTHORIZED }}'
-          RIGHTS_REFERENCE: '${{ vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}'
+          RIGHTS_OK: "${{ github.event_name == 'workflow_dispatch' && inputs.manufacturer_redistribution_authorized || vars.MEMS_DOCUMENTARY_REDISTRIBUTION_AUTHORIZED }}"
+          RIGHTS_REFERENCE: "${{ github.event_name == 'workflow_dispatch' && inputs.rights_authorization_reference || vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}"
         run: |
           set -euo pipefail
           if [[ "$RIGHTS_OK" != true || ! "$RIGHTS_REFERENCE" =~ .{8} ]]; then
@@ -80,7 +90,7 @@ jobs:
         shell: bash
         env:
           MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
-          RIGHTS_REFERENCE: '${{ vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}'
+          RIGHTS_REFERENCE: "${{ github.event_name == 'workflow_dispatch' && inputs.rights_authorization_reference || vars.MEMS_DOCUMENTARY_RIGHTS_REFERENCE }}"
         run: |
           set -euo pipefail
           set +x
