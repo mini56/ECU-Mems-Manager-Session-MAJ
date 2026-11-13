@@ -53,7 +53,13 @@
       "prepublication_candidate_sha256": "b314a275fec750fb4a073b2fa3a1d14e09b03e63f993226908da8041accefb19",
       "prepublication_pages": 391,
       "prepublication_entries": 6387,
-      "prepublication_images": 345
+      "prepublication_images": 345,
+      "prepublication_version": "fr-2026.11.13-RCL0193FRE-AKM7169FRE-SPI",
+      "prepublication_encrypted_asset": "MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
+      "prepublication_encrypted_sha256": "1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04",
+      "prepublication_encrypted_size": 28098898,
+      "prepublication_secret_source": "GitHub Actions secret MEMS_DOCUMENTARY_PUBLISH_PASSWORD (MAJ)",
+      "prepublication_encryption_verification": "AES-256-GCM authenticated roundtrip and tamper tests succeeded"
     },
     "en": {
       "language": "en",
@@ -76,7 +82,13 @@
           "original_sqlite_sha256": "dd37296b5d477c4124133f51e96691858c0ae4746d42c3e4478bf6003a9445bb",
           "source_pdf_sha256": "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0"
         }
-      ]
+      ],
+      "prepublication_version": "en-2026.11.13-AKM7169ENG",
+      "prepublication_encrypted_asset": "MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted",
+      "prepublication_encrypted_sha256": "10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab",
+      "prepublication_encrypted_size": 6731477,
+      "prepublication_secret_source": "GitHub Actions secret MEMS_DOCUMENTARY_PUBLISH_PASSWORD (MAJ)",
+      "prepublication_encryption_verification": "AES-256-GCM authenticated roundtrip and tamper tests succeeded"
     },
     "pt": {
       "language": "pt",
