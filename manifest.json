@@ -42,9 +42,18 @@
           "document_id": "rover-akm7169-spi",
           "edition": "AKM7169FRE",
           "available_source_pages": 20,
-          "source_status": "partial_original_french_spi_excerpt_ocr_not_fully_reviewed"
+          "source_status": "spi_20_original_french_pages_reviewed_and_merged_into_private_FR_SQLite",
+          "numbered_steps": 267,
+          "technical_values": 22,
+          "description_sections": 19,
+          "page_images": 20,
+          "documentary_entries": 429
         }
-      ]
+      ],
+      "prepublication_candidate_sha256": "b314a275fec750fb4a073b2fa3a1d14e09b03e63f993226908da8041accefb19",
+      "prepublication_pages": 391,
+      "prepublication_entries": 6387,
+      "prepublication_images": 345
     },
     "en": {
       "language": "en",
