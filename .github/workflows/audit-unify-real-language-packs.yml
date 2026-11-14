@@ -1,0 +1,154 @@
+name: AUDIT - unify the REAL FR EN documentary language bases
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/audit-unify-real-language-packs.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: real-language-normalization-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  existing-FR-EN-corpora:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout MAJ manifest and source validator
+        uses: actions/checkout@v4
+      - name: Checkout ONE SESSION documentary importer and shared schema
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-ia-documentary-single-source-20261114
+          path: session-source
+      - name: Install PDF and AES-256-GCM libraries
+        run: python -m pip install --disable-pip-version-check pymupdf cryptography
+      - name: Read the exact FR EN release assets from published manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+          manifest=json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          lines=[]
+          for lang in ('fr','en'):
+              item=manifest['documentary_bases'][lang]
+              assert item['available'] and item['document_count']>0
+              u=urlparse(item['release_url'])
+              assert u.scheme=='https' and u.netloc=='github.com'
+              parts=u.path.split('/')
+              assert parts[1:5]==['mini56','ECU-Mems-Manager-Session-MAJ','releases','download']
+              assert len(parts)==7
+              lines.append('\t'.join((lang,parts[5],parts[6])))
+          Path('existing-assets.tsv').write_text('\n'.join(lines)+'\n')
+          print('REAL_SOURCES_SELECTED_FROM_PUBLISHED_MANIFEST',len(lines))
+          PY
+      - name: Download exactly the encrypted published FR EN assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r lang tag asset; do
+            mkdir -p "incoming/$lang"
+            gh release download "$tag" \
+              --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --pattern "$asset" --dir "incoming/$lang"
+            test -f "incoming/$lang/$asset"
+            echo "ORIGINAL_ENCRYPTED_PACK_FOUND_$lang"
+          done < existing-assets.tsv
+      - name: Authenticate and decrypt privately in runner temporary directory
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python - <<'PY'
+          import hashlib,json,os,sys
+          from pathlib import Path
+          sys.path.insert(0,'bases/tools')
+          from rekey_documentary_installation import decrypt
+          from verify_licensed_release_and_enable import validate_encrypted
+          secret=os.environ.get('MEMS_DOCUMENTARY_PUBLISH_PASSWORD','')
+          if len(secret)<12:
+              raise SystemExit('PUBLISHER_SECRET_NOT_CONFIGURED')
+          info=json.loads(Path('manifest.json').read_text())
+          Path('work').mkdir(exist_ok=True)
+          for lang in ('fr','en'):
+              files=list(Path('incoming',lang).glob('*.encrypted'))
+              if len(files)!=1:raise SystemExit('ORIGINAL_ASSET_UNAVAILABLE_'+lang)
+              original=files[0]
+              expected=info['documentary_bases'][lang]['sha256']
+              data=original.read_bytes()
+              if hashlib.sha256(data).hexdigest()!=expected:
+                  raise SystemExit('ORIGINAL_SOURCE_SHA_MISMATCH_'+lang)
+              sha,docs=validate_encrypted(original,lang,secret)
+              if sha!=expected or len(docs)!=info['documentary_bases'][lang]['document_count']:
+                  raise SystemExit('SOURCE_MANIFEST_INCONSISTENT_'+lang)
+              Path('work',lang+'-before.zip').write_bytes(decrypt(data,secret))
+              print('ORIGINAL_ENCRYPTED_CORPUS_AUTHENTICATED',lang,'documents',len(docs))
+          PY
+      - name: Normalize FR EN actual SQLite without altering original source rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          for lang in fr en; do
+            python session-source/tools/normalize_documentary_snapshot.py \
+              --source-zip "work/$lang-before.zip" \
+              --language "$lang" --output "work/$lang-after.zip"
+          done
+      - name: Verify complete readback, provenance and no text/image losses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,sys,zipfile
+          from pathlib import Path
+          sys.path.insert(0,'session-source/tools')
+          from pack_mems_documentary import inspect_zip
+          for lang in ('fr','en'):
+              archive=Path('work',lang+'-after.zip')
+              result=inspect_zip(archive,lang)
+              audit=json.loads(Path(str(archive)+'.audit.json').read_text(encoding='utf-8'))
+              assert audit['original_document_rows_preserved']
+              assert result['document_count']==audit['document_count']
+              assert result['manufacturer_image_count']==audit['facsimiles']
+              assert audit['added_history_records']==audit['document_count']
+              assert all(event['import_kind']=='existing_snapshot'
+                         and event['imported_utc'] is None
+                         for event in audit['history'])
+              print('REAL_LANGUAGE_UNIFIED',lang,
+                    'documents',audit['document_count'],
+                    'pages',audit['source_pages'],
+                    'indexed_entries',audit['indexed_entries'],
+                    'pictures',audit['facsimiles'],
+                    'linked_procedures',audit['structured_operation_contract']['total_operations'],
+                    'linked_steps',audit['structured_operation_contract']['total_linked_steps'],
+                    'orphan_steps',audit['structured_operation_contract']['unlinked_steps'])
+          PY
+      - name: Re-encrypt verified candidates with the existing admin secret
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          for lang in fr en; do
+            python session-source/tools/pack_mems_documentary.py \
+              --source-zip "work/$lang-after.zip" \
+              --language "$lang" \
+              --output "work/MEMS-DOC-${lang^^}-UNIFIED-AUDIT-20261114.encrypted"
+          done
+          rm -f work/fr-before.zip work/en-before.zip work/fr-after.zip work/en-after.zip
+      - name: Keep only encrypted candidate packs and audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: FR-EN-unified-databases-audited-encrypted-only
+          path: |
+            work/MEMS-DOC-*-UNIFIED-AUDIT-20261114.encrypted
+            work/*-after.zip.audit.json
+          if-no-files-found: error
+          retention-days: 3
