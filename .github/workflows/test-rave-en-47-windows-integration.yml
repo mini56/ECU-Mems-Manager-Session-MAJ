@@ -1,0 +1,123 @@
+name: RAVE EN 47 PDFs + independent AKM7169ENG - actual private integration
+
+on:
+  push:
+    branches: [fix-rave-en-47-integration-20261114]
+    paths:
+      - 'bases/tools/verify_licensed_release_and_enable.py'
+      - 'bases/tests/test_dynamic_documentary_updates.py'
+      - 'bases/tests/windows/real_rave_en_install.cpp'
+      - 'bases/tests/windows/CMakeLists.txt'
+      - '.github/workflows/test-rave-en-47-windows-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-private-english-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test dependencies
+        run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+      - name: Test cumulative English update, 1313 image files, source review status, and legacy source IDs
+        run: python3 -m unittest discover -s bases/tests -p test_dynamic_documentary_updates.py -v
+      - name: Download actual encrypted owner draft without publishing it
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          mkdir -p candidate
+          gh release download mems-rave-en-47-20261114-private \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --pattern MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted \
+            --dir candidate
+          test "$(stat -c%s candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted)" -eq 77649250
+      - name: Decrypt and validate complete English archive without publication
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          spec=importlib.util.spec_from_file_location('validator', 'bases/tools/verify_licensed_release_and_enable.py')
+          mod=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          import os
+          asset=Path('candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted')
+          digest,documents=mod.validate_encrypted(asset,'en',os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD'])
+          ids={d['document_id'] for d in documents}
+          assert len(documents)==48, 'EN_48_DOCUMENTS_REQUIRED'
+          assert sum(d['source_pages'] for d in documents)==1841, 'EN_TOTAL_PAGE_COUNT_INVALID'
+          assert 'AKM7169ENG' in ids, 'AKM_MISSING_AS_INDEPENDENT_SOURCE'
+          rave=[d for d in documents if d['document_id']=='RCL0193ENG' or d['document_id'].startswith('RAVE_')]
+          assert len(rave)==47 and sum(d['source_pages'] for d in rave)==1359, '47_ORIGINAL_RAVE_PDFS_MISSING'
+          assert next(d['source_pages'] for d in documents if d['document_id']=='AKM7169ENG')==482
+          print('ENGLISH_PRIVATE_DOCUMENTARY_VALIDATED')
+          print('RAVE: 47 distinct PDF manuals, 1359 pages')
+          print('AKM7169ENG: 1 independent manual, 482 pages')
+          print('Total: 48 documents, 1841 pages; original encrypted SHA256:',digest)
+          PY
+      - name: No public manifest, Release activation or Setup
+        run: echo 'PRIVATE_VALIDATION_ONLY_NO_RELEASE_OR_MANIFEST_CHANGE'
+
+  windows-real-install-and-reader:
+    needs: validate-private-english-snapshot
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: maj-source
+      - name: Retrieve same MEMS SESSION source branch used to construct the package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          git clone --depth 1 --branch fix-rave-en-multidoc-20261114 https://github.com/mini56/ECU-Mems-Manager-Session.git session-source
+          if($LASTEXITCODE -ne 0){throw 'SESSION_SOURCE_CLONE_FAILED'}
+      - name: Retrieve the real encrypted private draft
+        shell: pwsh
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Force candidate | Out-Null
+          gh release download mems-rave-en-47-20261114-private --repo mini56/ECU-Mems-Manager-Session-MAJ --pattern MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted --dir candidate
+          if($LASTEXITCODE -ne 0){throw 'RAVE_EN_PRIVATE_PACK_DOWNLOAD_FAILED'}
+          $pack=(Get-Item candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted)
+          if($pack.Length -ne 77649250){throw 'RAVE_EN_PACK_SIZE_CHANGED'}
+      - name: Install Qt5 for real Windows application-source compilation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check aqtinstall==3.3.0
+          if($LASTEXITCODE -ne 0){throw 'AQT_NOT_AVAILABLE'}
+          $sevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
+          python -m aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O C:\Qt --external $sevenZip
+          if($LASTEXITCODE -ne 0){throw 'QT_INSTALL_FAILED'}
+      - name: Compile real SESSION installer and shared documentary reader
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $source=(Resolve-Path session-source).Path
+          cmake -S maj-source/bases/tests/windows -B build-rave-en -A x64 "-DSESSION_SOURCE_ROOT=$source" "-DCMAKE_PREFIX_PATH=C:/Qt/5.15.2/msvc2019_64"
+          if($LASTEXITCODE -ne 0){throw 'RAVE_EN_CMAKE_FAILED'}
+          cmake --build build-rave-en --config Release --target real_rave_en_install --parallel
+          if($LASTEXITCODE -ne 0){throw 'RAVE_EN_REAL_APP_COMPILE_FAILED'}
+      - name: Install encrypted 47-RAVE English source plus separate AKM, verify search and image access
+        shell: pwsh
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          $ErrorActionPreference='Stop'
+          $qt='C:\Qt\5.15.2\msvc2019_64'
+          $bin=(Resolve-Path build-rave-en/Release).Path
+          & "$qt/bin/windeployqt.exe" --release --compiler-runtime --no-translations --dir $bin "$bin/real_rave_en_install.exe"
+          if($LASTEXITCODE -ne 0){throw 'RAVE_EN_QT_DEPLOY_FAILED'}
+          $pack=(Resolve-Path candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted).Path
+          & "$bin/real_rave_en_install.exe" $pack
+          if($LASTEXITCODE -ne 0){throw 'RAVE_EN_REAL_WINDOWS_INSTALL_FAILED'}
+          Write-Host 'RAVE_EN_47_AND_AKM_INDEPENDENT_INSTALLATION_PASS_NO_PUBLICATION'
