@@ -19,3 +19,20 @@ target_link_libraries(real_documentary_install PRIVATE
 if(MSVC)
     target_compile_options(real_documentary_install PRIVATE /utf-8)
 endif()
+
+# Exercise the real SESSION installer and documentary reader against the
+# complete 47-RAVE English snapshot. AKM7169ENG is NOT a RAVE PDF.
+add_executable(real_rave_en_install
+    real_rave_en_install.cpp
+    "${SESSION_SOURCE_ROOT}/database/MemsDocumentaryLocalInstaller.cpp"
+    "${SESSION_SOURCE_ROOT}/database/MemsDocumentaryEncryptedPack.cpp"
+    "${SESSION_SOURCE_ROOT}/database/MemsDocumentaryPackCatalog.cpp"
+    "${SESSION_SOURCE_ROOT}/database/MemsDocumentaryRepository.cpp"
+)
+target_include_directories(real_rave_en_install PRIVATE
+    "${SESSION_SOURCE_ROOT}/database")
+target_link_libraries(real_rave_en_install PRIVATE
+    Qt5::Core Qt5::Sql Qt5::Network bcrypt)
+if(MSVC)
+    target_compile_options(real_rave_en_install PRIVATE /utf-8)
+endif()
