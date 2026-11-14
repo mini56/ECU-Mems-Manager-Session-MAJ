@@ -120,6 +120,16 @@ jobs:
               assert all(event['import_kind']=='existing_snapshot'
                          and event['imported_utc'] is None
                          for event in audit['history'])
+              # The source documents already contain workshop procedures:
+              # a coherent language DB must link EVERY original step and
+              # procedure, not merely index the PDF pages.
+              operations=audit['structured_operation_contract']
+              assert operations['unlinked_steps']==0, (
+                  'SOURCE_STEPS_NOT_LINKED_TO_PROCEDURES_'+lang)
+              assert operations['procedures_without_keys']==0, (
+                  'SOURCE_OPERATIONS_NOT_LINKED_'+lang)
+              assert operations['total_linked_steps']>0
+              assert operations['total_operations']>0
               print('REAL_LANGUAGE_UNIFIED',lang,
                     'documents',audit['document_count'],
                     'pages',audit['source_pages'],
