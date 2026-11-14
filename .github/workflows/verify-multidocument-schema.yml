@@ -26,7 +26,7 @@ jobs:
           python-version: '3.11'
       - name: Verifier plusieurs documents par langue, revisions, conflits et rollback
         run: python bases/tests/test_schema_multidoc.py
-      - name: Verifier la structure publique des six packs et aucune fausse publication
+      - name: Verifier les six langues et toutes les bases réellement publiées
         shell: bash
         run: |
           python - <<'PY'
@@ -38,12 +38,23 @@ jobs:
           assert m['documentary_schema']=='mems-documentary-multisource-v1'
           assert set(m['documentary_bases'])=={'fr','en','pt','es','it','de'}
           assert not m['program']['available']
+          import re
           for code,entry in m['documentary_bases'].items():
               assert entry['language']==code
-              assert not entry['available'], 'NO_UNVALIDATED_PUBLIC_PACKAGE'
-              assert entry['document_count']==len(entry['published_documents'])==0
-              assert entry['release_url'] is None
               assert (root/'bases'/code/'README.md').is_file()
               assert entry['database_file']==f'mems_documentary_{code}.sqlite'
-          print('PASS_MAJ_SIX_LANGUAGES_MULTISOURCE_MANIFEST_UNPUBLISHED')
+              docs=entry['published_documents']
+              assert entry['document_count']==len(docs)
+              if entry['available']:
+                  assert len(docs)>0
+                  assert len({(d['document_id'],d['source_revision']) for d in docs})==len(docs)
+                  assert all(d['source_pages']>0 and re.fullmatch(r'[a-f0-9]{64}',d['source_sha256']) for d in docs)
+                  assert re.fullmatch(r'[a-f0-9]{64}',entry['sha256'])
+                  assert entry['release_url'].startswith(
+                      'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/')
+                  assert entry['installation_password_required']
+                  assert entry['encrypted_package_required']
+              else:
+                  assert not docs and entry['release_url'] is None
+          print('PASS_MAJ_SIX_LANGUAGES_DYNAMIC_MULTI_DOCUMENT_MANIFEST')
           PY
