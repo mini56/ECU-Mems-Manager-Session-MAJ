@@ -12,7 +12,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # GitHub draft Release assets require authenticated owner-level release access.
+  # This test only reads the asset; it never modifies a Release or manifest.
+  contents: write
 
 jobs:
   validate-private-english-snapshot:
