@@ -34,7 +34,7 @@ TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,43}$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9._-]{1,50}$")
 IMAGE_RE = re.compile(r"^images/[A-Za-z0-9._/-]+\.(?:png|jpg|jpeg|webp|svg)$", re.I)
 MAX_ZIP = 256 * 1024 * 1024
-MAX_FILES = 1000
+MAX_FILES = 2500
 MAX_EXPANDED = 700 * 1024 * 1024
 
 
@@ -99,10 +99,17 @@ def validate_native(db: sqlite3.Connection, language: str, archive: zipfile.ZipF
     require(totals[0] == sum(d["source_pages"] for d in documents) and
             totals[1] > 0 and totals[1] == totals[2],
             "INDEX_OR_PAGE_COUNTS_INVALID")
+    # Inventory records retain the original evidence and stay explicitly
+    # unapproved for repair advice. A validated publication may not contain
+    # unreviewed transcriptions.
+    accepted = ("source_checked", "technical_reviewed")
+    if status[0][2] == "source_inventory":
+        accepted += ("review_required",)
+    placeholders = ",".join("?" for _ in accepted)
     require(db.execute(
         "SELECT COUNT(*) FROM documentary_entries "
-        "WHERE verification_status!='source_checked'").fetchone()[0] == 0,
-        "DOCUMENT_ROWS_NOT_SOURCE_CHECKED")
+        f"WHERE verification_status NOT IN ({placeholders})", accepted
+    ).fetchone()[0] == 0, "DOCUMENT_VERIFICATION_STATUS_INVALID")
     require(db.execute(
         "SELECT COUNT(*) FROM documentary_entries e "
         "WHERE e.source_page IS NOT NULL AND NOT EXISTS "
@@ -264,9 +271,19 @@ def main() -> None:
         # preserve existing document IDs and revisions, never silently erase
         # previously published manuals.
         old_docs = entry.get("published_documents") or []
-        old_ids = {d.get("document_id") for d in old_docs}
-        new_ids = {d["document_id"] for d in documents}
-        require(old_ids.issubset(new_ids), "PREVIOUS_DOCUMENT_MISSING_FROM_UPDATE")
+        # Original source hashes are stable across legacy-to-native schema
+        # migrations even if the historical catalog used a different ID.
+        # Reject deletion or silent source substitution in later snapshots.
+        for previous in old_docs:
+            old_id = previous.get("document_id")
+            old_sha = previous.get("source_sha256")
+            preserved = any(
+                (old_id == current["document_id"] and
+                 (not old_sha or old_sha == current["source_sha256"])) or
+                (old_sha and old_sha == current["source_sha256"])
+                for current in documents
+            )
+            require(preserved, "PREVIOUS_DOCUMENT_MISSING_FROM_UPDATE")
         version = f"{language}-{args.tag}"
         require(VERSION_RE.fullmatch(version) is not None and
                 version != entry.get("version"), "VERSION_MUST_CHANGE")
@@ -280,7 +297,7 @@ def main() -> None:
             "installation_password_required": True,
             "encrypted_package_required": True
         }
-        print(f"VALIDATED_{language.upper()}_{len(documents)}_DOCUMENTS")
+        print(f"VERIFIED_{language.upper()}_{len(documents)}_SOURCE_DOCUMENTS")
     for language, change in changes.items():
         manifest["documentary_bases"][language].update(change)
     args.manifest.write_text(
