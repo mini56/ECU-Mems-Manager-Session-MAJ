@@ -80,19 +80,349 @@
       "language": "en",
       "description": "English",
       "available": true,
-      "version": "en-mems-doc-20261113-139dd8833",
-      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-20261113-139dd8833/MEMS-DOC-EN-AKM7169ENG-20261113-MAJ.encrypted",
-      "sha256": "10164258b6f8780d7e2249ef5ffa00cb9784f99cab1991cdb640e7833e9954ab",
+      "version": "en-mems-rave-en-47-20261114-private",
+      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-rave-en-47-20261114-private/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted",
+      "sha256": "e84f8cf428eb334657edac37761195d5b2a2c9ef4d902231a0578f5501418758",
       "installation_password_required": true,
       "encrypted_package_required": true,
       "database_file": "mems_documentary_en.sqlite",
-      "document_count": 1,
+      "document_count": 48,
       "published_documents": [
         {
-          "document_id": "rover-akm7169eng",
-          "edition": "rover-akm7169eng",
-          "source_pages": 482,
-          "source_sha256": "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0"
+          "document_id": "AKM7169ENG",
+          "source_revision": "AKM7169ENG-original-482",
+          "edition": "AKM7169ENG",
+          "source_sha256": "c8bbb30d7d5a52932e7f92723ba5dc70520012ac3ceac21d19ab0a39b4d4c4e0",
+          "source_pages": 482
+        },
+        {
+          "document_id": "RAVE_CDXN990E",
+          "source_revision": "original-04f3854038cb48d7",
+          "edition": "CDXN990E",
+          "source_sha256": "04f3854038cb48d7a761115ff69b0d5c121661d3a70a35fec6247d70c32db6f6",
+          "source_pages": 41
+        },
+        {
+          "document_id": "RAVE_ELXN970E",
+          "source_revision": "original-2d4ac50d22005818",
+          "edition": "ELXN970E",
+          "source_sha256": "2d4ac50d220058188e259185ad50bcf50ec4e9b01e2b02c9c6467bed1f6a5093",
+          "source_pages": 212
+        },
+        {
+          "document_id": "RAVE_HR01791X",
+          "source_revision": "original-edf9f76c22f6f2fa",
+          "edition": "HR01791X",
+          "source_sha256": "edf9f76c22f6f2fa3cb5008e30d6cc57b741a9af2d10383bd0fcb560541d3f53",
+          "source_pages": 90
+        },
+        {
+          "document_id": "RAVE_HR01795E",
+          "source_revision": "original-4687fc66bea21487",
+          "edition": "HR01795E",
+          "source_sha256": "4687fc66bea214872edf8d97e42687ddde2b0f4cb63263dcd27e4bbef29242d7",
+          "source_pages": 94
+        },
+        {
+          "document_id": "RAVE_IR07102E",
+          "source_revision": "original-e10ecd9f9228e16e",
+          "edition": "IR07102E",
+          "source_sha256": "e10ecd9f9228e16e83bc6f9ddaff926f9aa030c936be99c3a69c0743ecfa1e3c",
+          "source_pages": 24
+        },
+        {
+          "document_id": "RAVE_LIBXN",
+          "source_revision": "original-ac352f6d35c2f8a5",
+          "edition": "LIBXN",
+          "source_sha256": "ac352f6d35c2f8a5579c41242a478120d7b088995beca90d350df745f7889d9d",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_MCXN960E",
+          "source_revision": "original-b258f64ce9814629",
+          "edition": "MCXN960E",
+          "source_sha256": "b258f64ce981462956a70f059c82431c697fcc35987481197a7aeb7d0e207c55",
+          "source_pages": 3
+        },
+        {
+          "document_id": "RAVE_PRXN990E",
+          "source_revision": "original-79d3f6662b076a35",
+          "edition": "PRXN990E",
+          "source_sha256": "79d3f6662b076a35ef4691eaf1621d65386e78db89bb7d6d605a19cdc289d0f6",
+          "source_pages": 31
+        },
+        {
+          "document_id": "RAVE_R0809BU",
+          "source_revision": "original-be6ea247ba34d001",
+          "edition": "R0809BU",
+          "source_sha256": "be6ea247ba34d0011c360202a4985263c67c36be8dae61357c18314125f4d4bf",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_R0962BU",
+          "source_revision": "original-3977a276cbab89b5",
+          "edition": "R0962BU",
+          "source_sha256": "3977a276cbab89b524d98d286e8981460980ad6b2db7b3ed9d657503d1eeec81",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R2276BU",
+          "source_revision": "original-b1e99e6e18ebdeef",
+          "edition": "R2276BU",
+          "source_sha256": "b1e99e6e18ebdeefec4513879bfdc84288b984a84f74feab67134e75b0c3fe78",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R3591BU",
+          "source_revision": "original-8bc40199b56efc0f",
+          "edition": "R3591BU",
+          "source_sha256": "8bc40199b56efc0fff1011d7fbd0aa3aa1bd7012669801ca65d07407bb1cbb3a",
+          "source_pages": 6
+        },
+        {
+          "document_id": "RAVE_R3814BU",
+          "source_revision": "original-0c223a890bfe2f0e",
+          "edition": "R3814BU",
+          "source_sha256": "0c223a890bfe2f0e4b7d5ce739227d11177e3c12b3593e35facac0da697870f4",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R4083BU",
+          "source_revision": "original-e9dcd403aebc94b1",
+          "edition": "R4083BU",
+          "source_sha256": "e9dcd403aebc94b1efbdabf052b39b12a78cff1be45f5f0ce6c3ef552ad8c408",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R5424BU",
+          "source_revision": "original-f78efe4d72e2935a",
+          "edition": "R5424BU",
+          "source_sha256": "f78efe4d72e2935a4164eb9f54c7b0d70f52605d23e976e1183652a14ddc1623",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R5898BU",
+          "source_revision": "original-63162586f4d424c2",
+          "edition": "R5898BU",
+          "source_sha256": "63162586f4d424c261d6b84626347a4728cef8138633dee863be12f6f0ed03b8",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R6255BU",
+          "source_revision": "original-9ad6e7d2960363c2",
+          "edition": "R6255BU",
+          "source_sha256": "9ad6e7d2960363c2c4fb26591a0f75c93a4e63c7e7b0beaa985685cd2cdb73ad",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_R6499BU",
+          "source_revision": "original-ec2c6eab600252a6",
+          "edition": "R6499BU",
+          "source_sha256": "ec2c6eab600252a6070fc25aed7afc6cb31f6b35c984622455f24bcd234843a6",
+          "source_pages": 6
+        },
+        {
+          "document_id": "RAVE_R6529BU",
+          "source_revision": "original-065344fcf798be24",
+          "edition": "R6529BU",
+          "source_sha256": "065344fcf798be24eae106972e864f32fc986e63add42c524ae6b70b808abff3",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R6538BU",
+          "source_revision": "original-4ff96579445cf192",
+          "edition": "R6538BU",
+          "source_sha256": "4ff96579445cf192eae1987baab396d73476489d69ed5b394b00ef8d41e1e95c",
+          "source_pages": 3
+        },
+        {
+          "document_id": "RAVE_R6707BU",
+          "source_revision": "original-0c5584f2deeab6f3",
+          "edition": "R6707BU",
+          "source_sha256": "0c5584f2deeab6f3e76f3ea4ae03d29b8c9b738b8033d709e428b1bd1c9897a0",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R6957BU",
+          "source_revision": "original-8e34d4eb034a56b0",
+          "edition": "R6957BU",
+          "source_sha256": "8e34d4eb034a56b01590d74b81867b7c25f74bc4a6ed4d89922a340d81693c6f",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_R7303BU",
+          "source_revision": "original-6fa3c94cbcc225fc",
+          "edition": "R7303BU",
+          "source_sha256": "6fa3c94cbcc225fc381e1c2060f46f0b9a98aa154027f21914e57329885cdf4b",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R7518BU",
+          "source_revision": "original-57eba3cb5dff101e",
+          "edition": "R7518BU",
+          "source_sha256": "57eba3cb5dff101e8558de9798d70150d44a68d4152212c1f2523b02fb58d190",
+          "source_pages": 3
+        },
+        {
+          "document_id": "RAVE_R7532BU",
+          "source_revision": "original-15e20f5029afc5f7",
+          "edition": "R7532BU",
+          "source_sha256": "15e20f5029afc5f7e323b2001a3b15c44b56953e429b8f4b9ca88fb0e80cf2c9",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_R7965BU",
+          "source_revision": "original-570cf560d71a0283",
+          "edition": "R7965BU",
+          "source_sha256": "570cf560d71a02839a98e6a88aa44d9cac8de8d5d795d6d276375c0bcf3e7093",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_R8101BU",
+          "source_revision": "original-4483c159777ed4f4",
+          "edition": "R8101BU",
+          "source_sha256": "4483c159777ed4f4c0de12c3a4d0a7462f3b1b6c4f627d5686c9a96c43997e37",
+          "source_pages": 3
+        },
+        {
+          "document_id": "RAVE_R8381BU",
+          "source_revision": "original-3d80a0f3c1c8adb8",
+          "edition": "R8381BU",
+          "source_sha256": "3d80a0f3c1c8adb885b134d1d724ddf488cdfbeec705561657c84f8ba7b39cf9",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_R8411BU",
+          "source_revision": "original-cddf44f1531caf1f",
+          "edition": "R8411BU",
+          "source_sha256": "cddf44f1531caf1fd67fbc313ec5bfe6932a7951a48d61485489e5f78b7dd28a",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_R8413BU",
+          "source_revision": "original-de510965a144477d",
+          "edition": "R8413BU",
+          "source_sha256": "de510965a144477d964cfad3baec6361673452cbb3cd3108b80c0b621ff9e3f4",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_ROXN990E",
+          "source_revision": "original-8d36f99e61075e37",
+          "edition": "ROXN990E",
+          "source_sha256": "8d36f99e61075e37c68ef8801bc1d658bd8ce04c2f7c37dfa8747c226e1307b2",
+          "source_pages": 202
+        },
+        {
+          "document_id": "RAVE_RT0003BU",
+          "source_revision": "original-f9113477b3452acc",
+          "edition": "RT0003BU",
+          "source_sha256": "f9113477b3452acc3e00e129924ea5aeddf190e004dc5b8a20596a5073009444",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_TB12212E",
+          "source_revision": "original-0796c025b04ab99d",
+          "edition": "TB12212E",
+          "source_sha256": "0796c025b04ab99d00957619a01943e3769926b98def89741534dbe4feb47f4d",
+          "source_pages": 101
+        },
+        {
+          "document_id": "RAVE_TB22382E",
+          "source_revision": "original-8c14bc281e0332bf",
+          "edition": "TB22382E",
+          "source_sha256": "8c14bc281e0332bf7a9284510ab3ea4cd6d48c8d3c17a24a412538a821e50dd7",
+          "source_pages": 115
+        },
+        {
+          "document_id": "RAVE_X1885BU",
+          "source_revision": "original-a70d07fb8ace523c",
+          "edition": "X1885BU",
+          "source_sha256": "a70d07fb8ace523cc02e5aacbc3d386e3b8832b6c185b40003611c31e5831386",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_X6255BU",
+          "source_revision": "original-248c1e6d48688de8",
+          "edition": "X6255BU",
+          "source_sha256": "248c1e6d48688de86f8b904b075a76e67d74ef5fd37aec6a9087fca9f4b90716",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_X8386BU",
+          "source_revision": "original-dffaad5083e62254",
+          "edition": "X8386BU",
+          "source_sha256": "dffaad5083e622542997f667071ab980b3a477e96282c040aed9db1b7e6cd07e",
+          "source_pages": 3
+        },
+        {
+          "document_id": "RAVE_X8408BU",
+          "source_revision": "original-f48c9a239e896caa",
+          "edition": "X8408BU",
+          "source_sha256": "f48c9a239e896caa61996e76496545cbeb5cd467b7d87ad1983ade5b34c65603",
+          "source_pages": 5
+        },
+        {
+          "document_id": "RAVE_X8414BU",
+          "source_revision": "original-7208359c965ad784",
+          "edition": "X8414BU",
+          "source_sha256": "7208359c965ad78440f23f0e92aa445b837ef2197a4d834c8755bef344d3c1a0",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_X8417BU",
+          "source_revision": "original-d876cb83a30b7b9d",
+          "edition": "X8417BU",
+          "source_sha256": "d876cb83a30b7b9de3a1656dbc0800e8e89e4127453504806ab63ea273aa5bf5",
+          "source_pages": 4
+        },
+        {
+          "document_id": "RAVE_X8419BU",
+          "source_revision": "original-91f0dc10496b9946",
+          "edition": "X8419BU",
+          "source_sha256": "91f0dc10496b9946850b364a0c30f016941ff3142a60cd3a45a108d683f7f594",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_X8420BU",
+          "source_revision": "original-e82744f6fae398cd",
+          "edition": "X8420BU",
+          "source_sha256": "e82744f6fae398cded69a9f6fce3fd9f526e50419513e5589cf73b0b71fe3ae6",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_X8479BU",
+          "source_revision": "original-c83bbfd0190c845c",
+          "edition": "X8479BU",
+          "source_sha256": "c83bbfd0190c845c74c134468fb4d64e0d928413e15bd0312c8653ea2d926691",
+          "source_pages": 2
+        },
+        {
+          "document_id": "RAVE_X8499BU",
+          "source_revision": "original-3616c535593f25f9",
+          "edition": "X8499BU",
+          "source_sha256": "3616c535593f25f9771de0be3abf5d9a0d19479549afc31ac003c69780a60711",
+          "source_pages": 3
+        },
+        {
+          "document_id": "RAVE_X8507BU",
+          "source_revision": "original-40627aaafc4706dd",
+          "edition": "X8507BU",
+          "source_sha256": "40627aaafc4706dda72168921edd79bc2a84a7df625aaf2cf660477c38337c59",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RAVE_XNDB2ENG",
+          "source_revision": "original-9ba32ea15ec43696",
+          "edition": "XNDB2ENG",
+          "source_sha256": "9ba32ea15ec436960580d9bd65a4b6621f8875c4fc65e2113ffb5df8b84a9062",
+          "source_pages": 1
+        },
+        {
+          "document_id": "RCL0193ENG",
+          "source_revision": "RCL0193ENG-5th-edition",
+          "edition": "RCL0193ENG",
+          "source_sha256": "c050a3eebe50c5a85bf8a69b7722bd2052079944e09d58578a498984ecf06715",
+          "source_pages": 372
         }
       ],
       "planned_documents": [
