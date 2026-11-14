@@ -1,0 +1,111 @@
+name: Activate complete RAVE EN English documentary base for SESSION
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-rave-en-47-for-session.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: official-documentary-maj-manifest
+  cancel-in-progress: false
+jobs:
+  publish-verified-english-documentary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout MAJ manifest
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Checkout source-tested English documentary validator
+        uses: actions/checkout@v4
+        with:
+          ref: fix-rave-en-47-integration-20261114
+          path: integration
+          persist-credentials: false
+      - name: Install authenticated-pack verification library
+        run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+      - name: Run non-regression checks for native English 47-RAVE base
+        run: python3 -m unittest discover -s integration/bases/tests -p test_dynamic_documentary_updates.py -v
+      - name: Retrieve exact AES-GCM pack from the existing owner draft
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          mkdir -p candidate
+          asset_id="$(gh api repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/445244432 \
+            --jq '.assets[] | select(.name=="MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted") | .id')"
+          test "$asset_id" = 747271423
+          curl --fail --location --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/octet-stream' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/assets/$asset_id" \
+            -o candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted
+          test "$(stat -c%s candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted)" -eq 77649250
+          echo 'OWNER_DRAFT_ENCRYPTED_PACK_RETRIEVED'
+      - name: Verify contents and prepare ONLY English manifest change
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          set -euo pipefail
+          set +x
+          cp manifest.json candidate/staged-manifest.json
+          python3 integration/bases/tools/verify_licensed_release_and_enable.py \
+            --manifest candidate/staged-manifest.json \
+            --asset-dir candidate \
+            --tag mems-rave-en-47-20261114-private \
+            --language en
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          origin=json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          staged=json.loads(Path('candidate/staged-manifest.json').read_text(encoding='utf-8'))
+          en=staged['documentary_bases']['en']
+          docs=en['published_documents']
+          assert len(docs)==en['document_count']==48, 'NOT_48_DOCUMENTS'
+          akm=[d for d in docs if d['document_id']=='AKM7169ENG']
+          rave=[d for d in docs if d['document_id']=='RCL0193ENG' or d['document_id'].startswith('RAVE_')]
+          assert len(akm)==1 and akm[0]['source_pages']==482, 'AKM_NOT_INDEPENDENT'
+          assert len(rave)==47 and sum(d['source_pages'] for d in rave)==1359, 'RAVE_47_PDF_MISSING'
+          assert sum(d['source_pages'] for d in docs)==1841, 'EN_PAGES_CHANGED'
+          asset=Path('candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted')
+          assert hashlib.sha256(asset.read_bytes()).hexdigest()=='e84f8cf428eb334657edac37761195d5b2a2c9ef4d902231a0578f5501418758', 'PACK_CHANGED'
+          assert en['sha256']==hashlib.sha256(asset.read_bytes()).hexdigest(), 'MANIFEST_HASH_CHANGED'
+          assert origin['documentary_bases']['fr']==staged['documentary_bases']['fr'], 'FRENCH_DATABASE_ENTRY_CHANGED'
+          for key in ('program','schema_version','documentary_schema','document_packs_policy'):
+              assert origin[key]==staged[key], key+'_CHANGED'
+          for language in ('pt','es','it','de'):
+              assert origin['documentary_bases'][language]==staged['documentary_bases'][language], language+'_CHANGED'
+          assert en['release_url']=='https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-rave-en-47-20261114-private/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted'
+          print('PASS_EN_47_RAVE_PDFS_1359_PAGES_PLUS_AKM7169ENG_INDEPENDENT_482_PAGES')
+          print('PASS_FR_AND_ECU_MANIFEST_UNCHANGED')
+          print('PASS_ENCRYPTED_ASSET_SHA256')
+          PY
+      - name: Publish the already validated encrypted asset for SESSION updates
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          gh api --method PATCH repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/445244432 \
+            -F draft=false \
+            -f name='English documentary update - 47 RAVE originals plus separate AKM7169ENG' \
+            --jq '{id,draft,tag_name}'
+          test "$(gh api repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/445244432 --jq '.draft')" = false
+          echo 'RAVE_EN_ENCRYPTED_RELEASE_PUBLISHED'
+      - name: Activate only the English entry in public SESSION update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp candidate/staged-manifest.json manifest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- manifest.json
+          git commit -m 'Activate complete English RAVE 47 + independent AKM7169ENG database for SESSION'
+          git push origin HEAD:main
+          echo 'ENGLISH_RAVE_47_DOCUMENTARY_UPDATE_NOW_AVAILABLE_TO_SESSION'
