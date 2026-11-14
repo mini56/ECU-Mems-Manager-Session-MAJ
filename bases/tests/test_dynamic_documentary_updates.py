@@ -25,7 +25,9 @@ SPEC.loader.exec_module(validator)
 PASSWORD = "private-test-only-secret-12345"
 
 
-def make_archive(language: str, documents: tuple[str, ...], broken_image=False) -> bytes:
+def make_archive(language: str, documents: tuple[str, ...], broken_image=False,
+                 publication_status="validated", verification_status="source_checked",
+                 additional_images=0) -> bytes:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / f"mems_documentary_{language}.sqlite"
         db = sqlite3.connect(path)
@@ -49,7 +51,8 @@ def make_archive(language: str, documents: tuple[str, ...], broken_image=False) 
             CREATE VIRTUAL TABLE documentary_fts USING fts5(
                 title,source_text,content='documentary_entries',content_rowid='rowid');
         """)
-        db.execute("INSERT INTO documentary_database VALUES(1,1,?,'validated')", (language,))
+        db.execute("INSERT INTO documentary_database VALUES(1,1,?,?)",
+                   (language, publication_status))
         for i, doc in enumerate(documents):
             db.execute("INSERT INTO documentary_documents VALUES(?,?,?,?,?,?,?)",
                        (doc, "revision-1", language, doc, "a"*64, 2, "Synthetic test"))
@@ -57,7 +60,7 @@ def make_archive(language: str, documents: tuple[str, ...], broken_image=False) 
                 db.execute("INSERT INTO documentary_pages VALUES(?,?,?)",
                            (doc, "revision-1", p))
             db.execute("INSERT INTO documentary_entries VALUES(?,?,?,?,?,?,?)",
-                       (doc, "revision-1", "entry", "source_checked", 1,
+                       (doc, "revision-1", "entry", verification_status, 1,
                         "Synthetic", f"content {i}"))
             rowid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             db.execute("INSERT INTO documentary_fts(rowid,title,source_text) VALUES(?,?,?)",
@@ -67,12 +70,18 @@ def make_archive(language: str, documents: tuple[str, ...], broken_image=False) 
         digest = "b"*64 if broken_image else hashlib.sha256(image).hexdigest()
         db.execute("INSERT INTO documentary_images VALUES(?,?,?)",
                    (imgname, digest, len(image)))
+        for number in range(additional_images):
+            extra_name = f"images/facsimile_{number:04d}.png"
+            db.execute("INSERT INTO documentary_images VALUES(?,?,?)",
+                       (extra_name, hashlib.sha256(image).hexdigest(), len(image)))
         db.commit()
         db.close()
         payload = io.BytesIO()
         with zipfile.ZipFile(payload, "w", zipfile.ZIP_DEFLATED) as out:
             out.write(path, path.name)
             out.writestr(imgname, image)
+            for number in range(additional_images):
+                out.writestr(f"images/facsimile_{number:04d}.png", image)
         return payload.getvalue()
 
 
@@ -139,6 +148,73 @@ class DynamicUpdates(unittest.TestCase):
         docs = validator.validate_zip(
             make_archive("en", ("EN-MANUAL-1","EN-MANUAL-2")), "en")
         self.assertEqual(len(docs), 2)
+
+    def test_complete_rave_inventory_accepts_1313_images_without_approval(self):
+        data = make_archive(
+            "en", ("AKM7169ENG", "RCL0193ENG"),
+            publication_status="source_inventory",
+            verification_status="review_required",
+            additional_images=1312)
+        documents = validator.validate_zip(data, "en")
+        self.assertEqual(len(documents), 2)
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            self.assertEqual(len(archive.infolist()), 1314)
+
+    def test_unreviewed_text_cannot_be_disguised_as_validated(self):
+        with self.assertRaisesRegex(RuntimeError,
+                                    "DOCUMENT_VERIFICATION_STATUS_INVALID"):
+            validator.validate_zip(
+                make_archive(
+                    "en", ("AKM7169ENG",),
+                    publication_status="validated",
+                    verification_status="review_required"), "en")
+
+    def test_unknown_verification_status_rejected(self):
+        with self.assertRaisesRegex(RuntimeError,
+                                    "DOCUMENT_VERIFICATION_STATUS_INVALID"):
+            validator.validate_zip(
+                make_archive(
+                    "en", ("AKM7169ENG",),
+                    publication_status="source_inventory",
+                    verification_status="invented_approval"), "en")
+
+    def test_legacy_english_id_keeps_same_source_sha_when_migrating(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({
+                "schema_version": 2, "application": "ECU MEMS Manager SESSION",
+                "documentary_schema": "mems-documentary-multisource-v1",
+                "documentary_bases": {"en": {
+                    "database_file": "mems_documentary_en.sqlite",
+                    "published_documents": [{
+                        "document_id": "rover-akm7169eng",
+                        "source_sha256": "a"*64}]
+                }}
+            }))
+            pack = root / "MEMS-DOC-EN-native.encrypted"
+            pack.write_bytes(encrypt(make_archive(
+                "en", ("AKM7169ENG", "RCL0193ENG"),
+                publication_status="source_inventory",
+                verification_status="review_required")))
+            old_argv = sys.argv
+            old_secret = os.environ.get("MEMS_DOCUMENTARY_PUBLISH_PASSWORD")
+            try:
+                os.environ["MEMS_DOCUMENTARY_PUBLISH_PASSWORD"] = PASSWORD
+                sys.argv = [str(TOOL), "--manifest", str(manifest),
+                            "--asset-dir", str(root), "--tag", "next-release",
+                            "--language", "en"]
+                validator.main()
+                updated = json.loads(manifest.read_text())["documentary_bases"]["en"]
+                self.assertEqual(updated["document_count"], 2)
+                self.assertEqual(updated["published_documents"][0]["document_id"],
+                                 "AKM7169ENG")
+            finally:
+                sys.argv = old_argv
+                if old_secret is None:
+                    os.environ.pop("MEMS_DOCUMENTARY_PUBLISH_PASSWORD", None)
+                else:
+                    os.environ["MEMS_DOCUMENTARY_PUBLISH_PASSWORD"] = old_secret
 
     def test_document_image_mismatch_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "DOCUMENT_IMAGE_HASH_INVALID"):
