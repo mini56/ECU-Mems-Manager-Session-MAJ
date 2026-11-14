@@ -139,6 +139,51 @@ jobs:
                     'linked_steps',audit['structured_operation_contract']['total_linked_steps'],
                     'orphan_steps',audit['structured_operation_contract']['unlinked_steps'])
           PY
+      - name: Prove adding another independent PDF to the REAL FR EN snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,io,json,sqlite3,sys,tempfile,zipfile
+          from pathlib import Path
+          sys.path.insert(0,'session-source/tools')
+          import fitz
+          from add_documentary_pdf import append_pdf
+          from pack_mems_documentary import inspect_zip
+          with tempfile.TemporaryDirectory(prefix='mems-real-add-test-') as folder:
+              root=Path(folder)
+              synthetic=root/'SYNTHETIC_CI_ONLY_NEW_MANUAL.pdf'
+              with fitz.open() as pdf:
+                  for page in range(2):
+                      p=pdf.new_page()
+                      p.insert_text((50,80),'SYNTHETIC_CI_ONLY original test page '+str(page+1))
+                  pdf.save(synthetic)
+              for lang in ('fr','en'):
+                  original=Path('work',lang+'-after.zip')
+                  expanded=root/(lang+'-added.zip')
+                  previous=inspect_zip(original,lang)
+                  update=append_pdf(original,synthetic,lang,expanded)
+                  after=inspect_zip(expanded,lang)
+                  assert after['documents']==previous['documents']+1
+                  assert after['manufacturer_image_count']==previous['manufacturer_image_count']+2
+                  assert update['import_sequence']==after['documents']
+                  report=json.loads(Path(update['audit_report']).read_text(encoding='utf-8'))
+                  assert len(report['history'])==after['documents']
+                  assert report['history'][-1]['import_kind']=='added_pdf'
+                  assert report['history'][-1]['previous_snapshot_sha256']==hashlib.sha256(original.read_bytes()).hexdigest()
+                  assert report['history'][-1]['source_sha256']==hashlib.sha256(synthetic.read_bytes()).hexdigest()
+                  assert report['history'][-1]['source_pages']==2
+                  assert report['history'][-1]['images_at_import']==2
+                  assert report['history'][-1]['procedures_at_import']==0
+                  # A newly supplied, unreviewed PDF must not invent any
+                  # manufacturer repair steps or alter existing procedures.
+                  assert update['structured_operation_contract']['new_operations']==0
+                  assert update['structured_operation_contract']['new_linked_steps']==0
+                  print('REAL_LANGUAGE_NEW_PDF_ADDITIVE_TEST_PASS',lang,
+                        'preserved_original_documents',previous['documents'],
+                        'updated_documents',after['documents'],
+                        'historical_additions_tracked',len(report['history']))
+          PY
       - name: Re-encrypt verified candidates with the existing admin secret
         shell: bash
         env:
