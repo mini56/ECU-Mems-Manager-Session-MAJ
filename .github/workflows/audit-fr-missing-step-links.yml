@@ -1,0 +1,82 @@
+name: AUDIT - inspect French AKM step and procedure key contracts
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/audit-fr-missing-step-links.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install AES-GCM library
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Download exact existing encrypted French release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(python - <<'PY'
+          import json
+          from urllib.parse import urlparse
+          entry=json.load(open('manifest.json'))['documentary_bases']['fr']
+          print(urlparse(entry['release_url']).path.split('/')[-2])
+          PY
+          )
+          asset=$(python - <<'PY'
+          import json
+          from urllib.parse import urlparse
+          entry=json.load(open('manifest.json'))['documentary_bases']['fr']
+          print(urlparse(entry['release_url']).path.split('/')[-1])
+          PY
+          )
+          mkdir -p source
+          gh release download "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ \
+             --pattern "$asset" --dir source
+      - name: Report only structural field names of unlinked French SPI steps
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python - <<'PY'
+          import hashlib,io,json,os,sqlite3,struct,tempfile,zipfile
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          path=next(Path('source').glob('*.encrypted'))
+          data=path.read_bytes()
+          assert hashlib.sha256(data).hexdigest()==json.load(open('manifest.json'))['documentary_bases']['fr']['sha256']
+          secret=os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD']
+          key=hashlib.pbkdf2_hmac('sha256',secret.encode(),data[9:25],210000,32)
+          plain=AESGCM(key).decrypt(data[25:37],data[45:],data[:45])
+          assert plain[:2]==b'PK'
+          with zipfile.ZipFile(io.BytesIO(plain)) as z:
+              dbbytes=z.read('mems_documentary_fr.sqlite')
+          with tempfile.TemporaryDirectory() as directory:
+              dbfile=Path(directory)/'base.sqlite'
+              dbfile.write_bytes(dbbytes)
+              with sqlite3.connect(dbfile) as db:
+                  for kind in ('procedure','step','notice'):
+                      for doc in ('RCL0193FRE','AKM7169FRE'):
+                          rows=db.execute(
+                              "SELECT entry_id,source_page,source_table,raw_json FROM documentary_entries "
+                              "WHERE document_id=? AND entry_type=? ORDER BY entry_id",
+                              (doc,kind)).fetchall()
+                          from collections import Counter
+                          schema=Counter()
+                          for _,_,table,raw in rows:
+                              obj=json.loads(raw or '{}')
+                              schema[tuple(sorted(obj.keys()))]+=1
+                          print('FIELD_SHAPES',doc,kind,'count',len(rows),
+                                'tables',dict(Counter(x[2] for x in rows)),
+                                'shapes',[(count,keys) for keys,count in schema.most_common(4)])
+                          print('EXAMPLE_ENTRY_ID_AND_PAGE_ONLY',[(r[0],r[1]) for r in rows[:4]])
+                  docs=db.execute(
+                     "SELECT document_id,source_revision,source_pages FROM documentary_documents ORDER BY document_id").fetchall()
+                  print('UNCHANGED_DOCUMENTS',docs)
+          PY
