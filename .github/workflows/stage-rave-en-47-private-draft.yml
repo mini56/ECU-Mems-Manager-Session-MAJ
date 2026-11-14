@@ -1,0 +1,79 @@
+name: RAVE EN original 47 PDF - preparer brouillon chiffre
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stage-rave-en-47-private-draft.yml'
+permissions:
+  contents: write
+concurrency:
+  group: rave-en-47-owner-draft
+  cancel-in-progress: false
+jobs:
+  stage-en:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recuperer les 47 PDF RAVE originaux et le constructeur controle
+        run: |
+          git clone --depth 1 --branch fix-rave-en-multidoc-20261114 https://github.com/mini56/ECU-Mems-Manager-Session.git source
+          test "$(find source/rave -type f -iname '*.pdf' | wc -l)" -eq 47
+      - name: Dependances du traitement documentaire uniquement
+        run: python3 -m pip install --disable-pip-version-check --user pymupdf cryptography
+      - name: Construire et controler le pack candidat en memoire temporaire
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 source/tools/build_rave_en_multidoc.py --parts source/database/documentary/parts --rave source/rave/xn/wmxn990e.pdf --output "$RUNNER_TEMP/rave-candidate" > "$RUNNER_TEMP/rave-report.log"
+          python3 - "$RUNNER_TEMP/rave-candidate" <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'source/tools')
+          from pack_mems_documentary import inspect_zip
+          root=Path(sys.argv[1])
+          source=root/'MEMS-DOC-EN-AKM7169ENG-RAVE47-PRIVATE-CANDIDATE.zip'
+          check=inspect_zip(source,'en')
+          report=json.loads((root/'RAVE_EN_MERGE_REPORT.json').read_text(encoding='utf-8'))
+          assert check['documents']==48 and report['native_pages']==1841
+          assert check['manufacturer_image_count']==1313
+          assert report['approval']=='source_inventory / review_required'
+          print('FULL_RAVE_EN_SOURCE_OK 47 RAVE + 1 AKM, 1841 pages, 1313 images')
+          PY
+      - name: Chiffrer et verifier avec le secret administrateur MAJ
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: '${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}'
+        run: |
+          set -euo pipefail
+          set +x
+          if [ -z "$MEMS_DOCUMENTARY_PUBLISH_PASSWORD" ]; then
+            echo 'ADMIN_PASSWORD_NOT_CONFIGURED'
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/encrypted"
+          python3 source/tools/pack_mems_documentary.py --source-zip "$RUNNER_TEMP/rave-candidate/MEMS-DOC-EN-AKM7169ENG-RAVE47-PRIVATE-CANDIDATE.zip" --language en --output "$RUNNER_TEMP/encrypted/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted" --report "$RUNNER_TEMP/encrypted/report.json"
+          python3 - "$RUNNER_TEMP/encrypted/report.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert d['documents']==48 and d['manufacturer_image_count']==1313
+          assert d['cipher']=='AES-256-GCM'
+          print('ENCRYPTED_RAVE_EN_VERIFIED',d['encrypted_size'],d['encrypted_sha256'])
+          PY
+      - name: Conserver seulement le fichier chiffre dans une Release BROUILLON
+        shell: bash
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        run: |
+          set -euo pipefail
+          TAG=mems-rave-en-47-20261114-private
+          REPO=mini56/ECU-Mems-Manager-Session-MAJ
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            status="$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq '.isDraft')"
+            test "$status" = true || { echo 'PUBLICATION_INTERDITE'; exit 1; }
+          else
+            gh release create "$TAG" --repo "$REPO" --draft --title 'RAVE EN original + AKM7169ENG - brouillon prive' --notes 'Brouillon chiffre. 47 PDF RAVE originaux + AKM7169ENG; base anglaise en inventaire, transcriptions non validees techniquement. Ne pas rendre public sans droits de redistribution et test Windows. Le manifeste MAJ public reste inchange.'
+          fi
+          gh release upload "$TAG" "$RUNNER_TEMP/encrypted/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted" --repo "$REPO" --clobber
+          test "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq '.isDraft')" = true
+          echo 'RAVE_EN_OWNER_DRAFT_READY_NOT_PUBLIC'
