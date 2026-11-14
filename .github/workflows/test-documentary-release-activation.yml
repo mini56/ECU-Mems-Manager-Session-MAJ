@@ -92,7 +92,14 @@ jobs:
                   raise AssertionError('WRONG_PASSWORD_ACCEPTED')
               print('FUTURE_PACK_AUTHENTICATION_VERIFIED',lang,len(docs))
           manifest=temp/'manifest.json'
-          shutil.copy2('manifest.json',manifest)
+          baseline=json.loads(Path('manifest.json').read_text())
+          # This is an isolated first-publication test, never the real
+          # production manifest which already contains original FR/EN data.
+          for lang in ('fr','en'):
+              baseline['documentary_bases'][lang].update({
+                  'available':False,'version':None,'release_url':None,
+                  'sha256':None,'document_count':0,'published_documents':[]})
+          manifest.write_text(json.dumps(baseline))
           os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD']=test_secret
           for i,tag in enumerate(('mems-doc-ci-v1','mems-doc-ci-v2')):
               if i:
@@ -109,7 +116,7 @@ jobs:
               assert result['documentary_bases'][lang]['available']
               assert result['documentary_bases'][lang]['sha256']==hashes[lang]
               assert result['documentary_bases'][lang]['version']==lang+'-mems-doc-ci-v2'
-          assert all(not json.loads(Path('manifest.json').read_text())
+          assert all(json.loads(Path('manifest.json').read_text())
                      ['documentary_bases'][lang]['available']
                      for lang in ('fr','en'))
           print('SYNTHETIC_FR_EN_DYNAMIC_MAJ_MANIFEST_GATE_PASS')
