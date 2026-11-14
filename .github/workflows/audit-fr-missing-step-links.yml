@@ -79,4 +79,35 @@ jobs:
                   docs=db.execute(
                      "SELECT document_id,source_revision,source_pages FROM documentary_documents ORDER BY document_id").fetchall()
                   print('UNCHANGED_DOCUMENTS',docs)
+                  from collections import Counter
+                  def keys(kind):
+                      rows=db.execute(
+                          "SELECT raw_json FROM documentary_entries WHERE document_id=? "
+                          "AND entry_type=?",('AKM7169FRE',kind)).fetchall()
+                      return [json.loads(r[0]) for r in rows]
+                  procedures=keys('procedure')
+                  steps=keys('step')
+                  pset={(str(p.get('service_repair_no','')).strip(),
+                         str(p.get('operation','')).strip().lower())
+                        for p in procedures}
+                  pservice={k[0] for k in pset}
+                  print('SPI_PROCEDURE_UNIQUE_SERVICE_CODES',len(pservice),
+                        'UNIQUE_CODE_OPERATION_PAIRS',len(pset))
+                  print('SPI_STEPS_MATCH_PAIRS',sum(
+                        (str(step.get('service_repair_no','')).strip(),
+                         str(step.get('operation','')).strip().lower()) in pset
+                        for step in steps))
+                  print('SPI_STEPS_MATCH_SERVICE_ONLY',sum(
+                        str(step.get('service_repair_no','')).strip() in pservice
+                        for step in steps))
+                  print('SPI_STEPS_OPERATION_CLASSES',dict(Counter(
+                        str(step.get('operation','')).strip().lower()
+                        for step in steps)))
+                  print('SPI_STEP_DATA_TYPES',dict(Counter(
+                        type(step.get('step')).__name__ for step in steps)))
+                  print('SPI_SERVICE_CODE_DUPLICATE_COUNTS',dict(Counter(
+                        len([p for p in procedures
+                             if p.get('service_repair_no')==code])
+                        for code in pservice)))
+
           PY
