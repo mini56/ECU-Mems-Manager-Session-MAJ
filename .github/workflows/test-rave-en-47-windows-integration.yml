@@ -30,10 +30,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p candidate
-          gh release download mems-rave-en-47-20261114-private \
-            --repo mini56/ECU-Mems-Manager-Session-MAJ \
-            --pattern MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted \
-            --dir candidate
+          asset_id="$(gh api repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/445244432 \
+            --jq '.assets[] | select(.name=="MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted") | .id')"
+          test -n "$asset_id"
+          test "$(gh api repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/445244432 --jq '.draft')" = true
+          curl --fail --location --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/octet-stream' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/assets/$asset_id" \
+            --output candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted
           test "$(stat -c%s candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted)" -eq 77649250
       - name: Decrypt and validate complete English archive without publication
         env:
@@ -85,7 +91,9 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           New-Item -ItemType Directory -Force candidate | Out-Null
-          gh release download mems-rave-en-47-20261114-private --repo mini56/ECU-Mems-Manager-Session-MAJ --pattern MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted --dir candidate
+          $assetId=gh api repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/445244432 --jq '.assets[] | select(.name=="MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted") | .id'
+          if($LASTEXITCODE -ne 0 -or -not $assetId){throw 'RAVE_EN_DRAFT_ASSET_NOT_FOUND'}
+          curl.exe --fail --location --retry 3 -H "Authorization: Bearer $env:GH_TOKEN" -H 'Accept: application/octet-stream' -H 'X-GitHub-Api-Version: 2022-11-28' -o candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted "https://api.github.com/repos/mini56/ECU-Mems-Manager-Session-MAJ/releases/assets/$assetId"
           if($LASTEXITCODE -ne 0){throw 'RAVE_EN_PRIVATE_PACK_DOWNLOAD_FAILED'}
           $pack=(Get-Item candidate/MEMS-DOC-EN-RAVE47-AKM7169ENG-PRIVATE.encrypted)
           if($pack.Length -ne 77649250){throw 'RAVE_EN_PACK_SIZE_CHANGED'}
