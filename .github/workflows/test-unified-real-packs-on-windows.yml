@@ -1,0 +1,96 @@
+name: AUDIT - run REAL unified French English packs in Windows SESSION
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths: ['.github/workflows/test-unified-real-packs-on-windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read-real-fr-en:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-ia-documentary-single-source-20261114
+          path: session-source
+      - name: Download authenticated FR and EN candidate builds
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 43630398670 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --name FR-EN-unified-databases-audited-encrypted-only \
+            --dir candidates
+          test "$(find candidates -type f -name '*.encrypted' | wc -l)" -eq 2
+      - name: Install AES-GCM and Qt deployment tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check cryptography 'aqtinstall==3.3.0'
+          if($LASTEXITCODE -ne 0){throw 'PYTHON_REQUIREMENTS_MISSING'}
+          $sevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
+          python -m aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -m qtcharts -O C:\Qt --external $sevenZip
+          if($LASTEXITCODE -ne 0){throw 'QT_DEPENDENCY_INSTALL_FAILED'}
+      - name: Decrypt only for this Windows readback and verify images
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python - <<'PY'
+          import hashlib,os,struct,sys
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          sys.path.insert(0,'session-source/tools')
+          from add_documentary_pdf import copy_snapshot
+          from pack_mems_documentary import inspect_zip
+          secret=os.environ.get('MEMS_DOCUMENTARY_PUBLISH_PASSWORD','')
+          assert len(secret)>=12,'OWNER_SECRET_NOT_SET'
+          expected={'fr':'dea2288775263b741ad5ef3d88d85b051e6912c2d43282251622f4e45335c22d',
+                    'en':'1aee393c82fd7b0eda3ee5ecae83c9dbbf809c877bab95323ff76b2f27d589ad'}
+          root=Path('candidates')
+          root.mkdir(exist_ok=True)
+          for lang in ('fr','en'):
+              candidates=list(root.rglob('MEMS-DOC-'+lang.upper()+'-UNIFIED-AUDIT-20261114.encrypted'))
+              assert len(candidates)==1,'CANDIDATE_MISSING_'+lang
+              encrypted=candidates[0].read_bytes()
+              assert hashlib.sha256(encrypted).hexdigest()==expected[lang],'HASH_MISMATCH_'+lang
+              assert encrypted[:8]==b'MEMSDOC1' and encrypted[8]==1
+              key=hashlib.pbkdf2_hmac('sha256',secret.encode(),encrypted[9:25],210000,32)
+              plain=AESGCM(key).decrypt(encrypted[25:37],encrypted[45:],encrypted[:45])
+              zipfile=root/(lang+'-source.zip')
+              zipfile.write_bytes(plain)
+              inspect_zip(zipfile,lang)
+              copy_snapshot(zipfile,Path('installed')/lang,lang)
+              zipfile.unlink()
+              print('ACTUAL_LANGUAGE_PACK_DECRYPTED_AND_SOURCE_VERIFIED',lang)
+          PY
+      - name: Compile the real SESSION documentary C++ reader
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cmake -S session-source -B session-source/build-real-language -A x64 -DCMAKE_PREFIX_PATH='C:/Qt/5.15.2/msvc2019_64' -DMEMS_USE_BUNDLED_LIBROSCO_X64=ON -DMEMS_RUN_REFERENCE_SELFTEST_POST_BUILD=OFF
+          if($LASTEXITCODE -ne 0){throw 'SESSION_CMAKE_CONFIGURE_FAILED'}
+          cmake --build session-source/build-real-language --config Release --target mems_documentary_real_language_selftest --parallel
+          if($LASTEXITCODE -ne 0){throw 'REAL_PACK_READER_COMPILATION_FAILED'}
+      - name: SESSION must read and reconstruct real FR and EN procedures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $bin=(Resolve-Path 'session-source/build-real-language/Release').Path
+          $qt='C:\Qt\5.15.2\msvc2019_64'
+          & "$qt/bin/windeployqt.exe" --release --no-translations --dir $bin "$bin/mems_documentary_real_language_selftest.exe"
+          if($LASTEXITCODE -ne 0){throw 'QT_RUNTIME_DEPLOY_FAILED'}
+          $fr=(Resolve-Path 'installed/fr/mems_documentary_fr.sqlite').Path
+          $en=(Resolve-Path 'installed/en/mems_documentary_en.sqlite').Path
+          & "$bin/mems_documentary_real_language_selftest.exe" $fr $en
+          if($LASTEXITCODE -ne 0){throw 'REAL_SESSION_FR_EN_READER_FAILED'}
+          Write-Host 'PASS_BOTH_REAL_DOCUMENTARY_BASES_READABLE_IN_WINDOWS_SESSION'
