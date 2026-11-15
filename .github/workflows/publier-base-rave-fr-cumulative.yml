@@ -1,0 +1,240 @@
+name: FINIR FR - 6 documents cumulatifs, validation SESSION Windows, publication MAJ
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publier-base-rave-fr-cumulative.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: official-documentary-maj-manifest
+  cancel-in-progress: false
+env:
+  SOURCE_REF: fix-ia-documentary-single-source-20261114
+  RELEASE_TAG: mems-doc-fr-6-20261115
+  ASSET_NAME: MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted
+jobs:
+  build-cumulative-fr:
+    name: Construire un seul pack FR cumulatif a partir des documents reels
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-ia-documentary-single-source-20261114
+          path: session-source
+      - name: Installer uniquement le chiffrement authentifie
+        run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+      - name: Retrouver les 406 pages reelles et 406 images du transfert utilisateur
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 session-source/tools/restore_rave_fr_pdf_bundle_from_git_blobs.py \
+            --manifests session-source/tools/private_sources/fr_rave_addon_20261115 \
+            --output original-four-french-documents.zip
+      - name: Retrouver la derniere base FR de 2 documents et son OCR 371 pages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          test ${#MEMS_DOCUMENTARY_PUBLISH_PASSWORD} -ge 12
+          mkdir -p fr-existing
+          gh release download mems-doc-fr-rave-371-ocr-20261115-private \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --pattern MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted \
+            --dir fr-existing
+          python3 - <<'PY'
+          import hashlib,io,os,re,struct,zipfile
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          p=Path('fr-existing/MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted')
+          raw=p.read_bytes()
+          assert hashlib.sha256(raw).hexdigest()=='6813ef6edd703abee4f7cfeba9e344cfe754227ebc4b6a31afc7dcc09e5279ab'
+          assert raw[:8]==b'MEMSDOC1' and raw[8]==1
+          key=hashlib.pbkdf2_hmac('sha256',os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD'].encode('utf-8'),raw[9:25],210000,32)
+          plain=AESGCM(key).decrypt(raw[25:37],raw[45:],raw[:45])
+          assert len(plain)==struct.unpack('<Q',raw[37:45])[0]
+          with zipfile.ZipFile(io.BytesIO(plain)) as archive:
+              assert archive.testzip() is None
+              names=archive.namelist()
+              assert len(names)==346 and all(n=='mems_documentary_fr.sqlite' or re.fullmatch(r'images/[A-Za-z0-9_.-]+\\.(jpg|png|webp)',n,re.I) for n in names)
+              root=Path('base-fr-existante')
+              for name in names:
+                  target=root/name
+                  target.parent.mkdir(parents=True,exist_ok=True)
+                  target.write_bytes(archive.read(name))
+          print('BASE_FR_RAVE_391_ORIGINAL_PAGES_PLUS_371_OCR_RESTORED_AUTHENTICATED')
+          PY
+      - name: Construire la vraie base cumulative 391 + 406 pages
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          mkdir -p candidate
+          python3 session-source/tools/merge_rave_fr_addon.py \
+            --installed base-fr-existante/mems_documentary_fr.sqlite \
+            --addon original-four-french-documents.zip \
+            --output candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted
+      - name: Verifier le contenu, la provenance et preparer SEULEMENT le catalogue candidat
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          cp manifest.json candidate-manifest.json
+          python3 bases/tools/verify_licensed_release_and_enable.py \
+            --manifest candidate-manifest.json \
+            --asset-dir candidate \
+            --tag mems-doc-fr-6-20261115 \
+            --language fr
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          current=json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          proposed=json.loads(Path('candidate-manifest.json').read_text(encoding='utf-8'))
+          old=current['documentary_bases']['fr']
+          new=proposed['documentary_bases']['fr']
+          assert old['document_count']==2
+          assert new['document_count']==6
+          docs=new['published_documents']
+          assert sum(d['source_pages'] for d in docs)==797
+          assert sorted(d['source_pages'] for d in docs)==[20,24,74,98,210,371]
+          assert old['published_documents']==[
+              next(d for d in docs if d['document_id']==old_doc['document_id'])
+              for old_doc in old['published_documents']
+          ]
+          assert proposed['documentary_bases']['en']==current['documentary_bases']['en']
+          audit=json.loads(Path('candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted.audit.json').read_text(encoding='utf-8'))
+          assert audit['previous']['documents']==2 and audit['previous']['pages']==391
+          assert audit['merged']['documents']==6 and audit['merged']['pages']==797
+          assert audit['merged']['images']==751
+          assert audit['merged']['procedures']==417 and audit['merged']['steps']==3415
+          assert audit['existing_installed_sqlite_unchanged']
+          print('CANDIDATE_FULL_FRENCH_PACK_VERIFIED_6_DOCS_797_PAGES_751_IMAGES_417_PROCEDURES_3415_STEPS')
+          PY
+      - name: Fournir un seul pack complet au test Windows suivant, pas un complement
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAVE-FR-6-CUMULATIF-CANDIDAT-VERIFIE
+          path: |
+            candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted
+            candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted.audit.json
+            candidate-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+  windows-real-session-install:
+    name: Installer et interroger les 6 documents avec le vrai lecteur SESSION sous Windows
+    needs: build-cumulative-fr
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-ia-documentary-single-source-20261114
+          path: session-source
+      - uses: actions/download-artifact@v4
+        with:
+          name: RAVE-FR-6-CUMULATIF-CANDIDAT-VERIFIE
+          path: candidate
+      - name: Installer Qt 5.15.2 et son environnement Windows natif
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
+          if($LASTEXITCODE -ne 0){throw 'QT_INSTALLER_UNAVAILABLE'}
+          $sevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
+          python -m aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -m qtcharts -O C:\Qt --external $sevenZip
+          if($LASTEXITCODE -ne 0){throw 'QT_WINDOWS_DEPENDENCIES_FAILED'}
+      - name: Compiler le lecteur et installateur C++ utilises par SESSION
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cmake -S session-source -B session-source/build-rave-fr6 -A x64 -DCMAKE_PREFIX_PATH='C:/Qt/5.15.2/msvc2019_64' -DMEMS_USE_BUNDLED_LIBROSCO_X64=ON -DMEMS_RUN_REFERENCE_SELFTEST_POST_BUILD=OFF
+          if($LASTEXITCODE -ne 0){throw 'SESSION_CMAKE_CONFIG_FAILED'}
+          cmake --build session-source/build-rave-fr6 --config Release --target mems_documentary_real_fr_rave6_install_selftest --parallel
+          if($LASTEXITCODE -ne 0){throw 'SESSION_NATIVE_READER_BUILD_FAILED'}
+      - name: Installer le VRAI pack cumulatif et rechercher ancien et nouveau manuel
+        shell: pwsh
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:MEMS_DOCUMENTARY_PUBLISH_PASSWORD.Length -lt 12){throw 'ADMIN_SECRET_NOT_AVAILABLE'}
+          $bin=(Resolve-Path 'session-source/build-rave-fr6/Release').Path
+          $qt='C:\Qt\5.15.2\msvc2019_64'
+          & "$qt/bin/windeployqt.exe" --release --no-translations --dir $bin "$bin/mems_documentary_real_fr_rave6_install_selftest.exe"
+          if($LASTEXITCODE -ne 0){throw 'QT_RUNTIME_DEPLOY_FAILED'}
+          $asset=(Resolve-Path 'candidate/candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted').Path
+          & "$bin/mems_documentary_real_fr_rave6_install_selftest.exe" $asset
+          if($LASTEXITCODE -ne 0){throw 'REAL_FR_797_PAGES_SESSION_INSTALL_SEARCH_FAILED'}
+          Write-Host 'PASS_REAL_797_PAGES_RAVE_FR_6_SOURCE_MANUALS_INSTALLED_AND_QUERYABLE_IN_SESSION'
+  publish-only-after-windows:
+    name: Publier UN SEUL pack FR sur le site MAJ et activer son manifeste
+    needs: [build-cumulative-fr, windows-real-session-install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: RAVE-FR-6-CUMULATIF-CANDIDAT-VERIFIE
+          path: candidate
+      - name: Ne pas publier si le catalogue reel a change en parallele
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          git pull --ff-only origin main
+          python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+          mkdir -p preflight
+          cp candidate/candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted preflight/
+          cp manifest.json preflight/manifest.json
+          python3 bases/tools/verify_licensed_release_and_enable.py \
+            --manifest preflight/manifest.json \
+            --asset-dir preflight \
+            --tag mems-doc-fr-6-20261115 --language fr
+          cmp preflight/manifest.json candidate/candidate-manifest.json || { echo 'CATALOG_CHANGED_SINCE_WINDOWS_TEST'; exit 1; }
+      - name: Publication atomique en cas de controles tous verts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ASSET='candidate/candidate/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted'
+          TAG='mems-doc-fr-6-20261115'
+          if gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo 'RELEASE_TAG_ALREADY_PRESENT_REFUSING_TO_OVERWRITE'; exit 1
+          fi
+          gh release create "$TAG" "$ASSET" \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --draft \
+            --title 'Base documentaire FR RAVE cumulative - 6 documents, 797 pages' \
+            --notes 'Version complete et cumulative pour ECU MEMS Manager SESSION. Documents FR: RCL0193FRE 371 pages, AKM7169FRE 20 pages, bibliotheque electrique 210 pages, schematiques electriques 74 pages, manuel conducteur 98 pages, equipement audio 24 pages. Total 6 documents, 797 pages, 751 illustrations, 417 procedures et 3415 etapes originales conservees. OCR non relu reste explicitement review_required et ne doit pas devenir un conseil de reparation valide. Installation testee sous Windows via installateur et lecteur natifs SESSION. Base FR complete pour ces 6 documents, mais 6 autres manuels du CD RAVE francais restent a traiter.'
+          test "$(gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ --json isDraft --jq .isDraft)" = true
+          test "$(gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" = 1
+          gh release edit "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ --draft=false
+          cp candidate/candidate-manifest.json manifest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          git commit -m 'MAJ officielle FR cumulative 6 documents RAVE, 797 pages, Windows verified'
+          git push origin HEAD:main
+          echo 'SITE_MAJ_FR_OFFICIEL_CUMULATIF_6_DOCUMENTS_797_PAGES_PUBLIE'
