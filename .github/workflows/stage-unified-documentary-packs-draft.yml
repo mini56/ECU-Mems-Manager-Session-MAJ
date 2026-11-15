@@ -1,0 +1,65 @@
+name: Stage verified FR EN documentary packs as private GitHub draft
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/stage-unified-documentary-packs-draft.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: staged-doc-fr-en-20261115
+  cancel-in-progress: false
+jobs:
+  private-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TAG: mems-doc-unified-fr-en-20261115-draft
+    steps:
+      - uses: actions/checkout@v4
+      - name: Obtain only authenticated, encrypted candidates from successful Windows test
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 43630398670 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --name FR-EN-unified-databases-audited-encrypted-only \
+            --dir staging
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected={
+          "MEMS-DOC-FR-UNIFIED-AUDIT-20261114.encrypted":"dea2288775263b741ad5ef3d88d85b051e6912c2d43282251622f4e45335c22d",
+          "MEMS-DOC-EN-UNIFIED-AUDIT-20261114.encrypted":"1aee393c82fd7b0eda3ee5ecae83c9dbbf809c877bab95323ff76b2f27d589ad"}
+          for name,digest in expected.items():
+              path=Path('staging')/name
+              assert path.is_file() and path.read_bytes()[:8]==b'MEMSDOC1'
+              assert hashlib.sha256(path.read_bytes()).hexdigest()==digest
+              print('DRAFT_ENCRYPTED_ASSET_SHA256_VERIFIED',name)
+          assert len(list(Path('staging').glob('*.encrypted')))==2
+          PY
+      - name: Stage private draft only (no release publication and no manifest mutation)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" \
+              --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo 'DRAFT_TAG_ALREADY_EXISTS'
+            gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --json isDraft --jq 'if .isDraft then "REMAINS_PRIVATE_DRAFT" else error("PUBLIC_RELEASE_FORBIDDEN") end'
+            exit 0
+          fi
+          gh release create "$TAG" \
+            staging/MEMS-DOC-FR-UNIFIED-AUDIT-20261114.encrypted \
+            staging/MEMS-DOC-EN-UNIFIED-AUDIT-20261114.encrypted \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --draft --title "Bases FR EN unifiées — préparation privée" \
+            --notes "Candidats AES-GCM validés sous Windows avec le lecteur SESSION. Non publiés, non activés dans le manifeste MAJ. Téléchargement privé par le propriétaire pour essai local. Ne pas rendre publics sans autorisation de redistribution documentaire."
+          gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json isDraft,assets,tagName --jq             'if (.isDraft and (.assets|length)==2) then "PRIVATE_DRAFT_TWO_ENCRYPTED_ASSETS_READY" else error("DRAFT_VALIDATION_FAILED") end'
