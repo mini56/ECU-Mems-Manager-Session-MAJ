@@ -1,0 +1,153 @@
+name: RAVE FR - enrich original 371 page manual in installed French database
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/enrich-real-fr-rave-ocr.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: one-fr-rave-371-page-ocr-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  enrich-real-french:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout actual SESSION reader and private original-source OCR
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-ia-documentary-single-source-20261114
+          path: session-source
+      - name: Install AES256-GCM and SQLite checks
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Reconstitute exactly the OCR extracted from the uploaded French PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,hashlib,json
+          from pathlib import Path
+          root=Path('session-source/tools/private_sources')
+          chunks=[(root/f'rave_fr_wmxn980f_ocr_part{n}.b64').read_text() for n in (1,2)]
+          raw=base64.b64decode(''.join(''.join(c.split()) for c in chunks),validate=True)
+          assert hashlib.sha256(raw).hexdigest()=='267152e1228abe09c6571a757f6c64fec9f91e5633b61a69ae0d560b14fb9092'
+          Path('real-rave-french-ocr.jsonl.gz').write_bytes(raw)
+          import gzip
+          with gzip.open('real-rave-french-ocr.jsonl.gz','rt',encoding='utf-8') as source:
+              records=[json.loads(line) for line in source]
+          assert len(records)==371
+          assert all(item['source_sha256']=='9150471b587f0216408220cdfbc5dc19c00262d73dc447c6d10ab82a49961086'
+                     for item in records)
+          assert [item['physical_page'] for item in records]==list(range(1,372))
+          print('ORIGINAL_371_SCANNED_PAGES_OCR_AUTHENTICATED',
+                'pages_with_text',sum(len(item['text'])>=20 for item in records))
+          PY
+      - name: Download the audited, already-installed French corpus without rewriting it
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p incoming
+          gh run download 43630398670 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --name FR-EN-unified-databases-audited-encrypted-only \
+            --dir incoming
+          test -f incoming/MEMS-DOC-FR-UNIFIED-AUDIT-20261114.encrypted
+      - name: Authenticated decryption of the exact existing FR language snapshot
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python - <<'PY'
+          import hashlib,os,struct
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          path=Path('incoming/MEMS-DOC-FR-UNIFIED-AUDIT-20261114.encrypted')
+          data=path.read_bytes()
+          assert hashlib.sha256(data).hexdigest()=='dea2288775263b741ad5ef3d88d85b051e6912c2d43282251622f4e45335c22d'
+          assert data[:8]==b'MEMSDOC1' and data[8]==1
+          key=hashlib.pbkdf2_hmac('sha256',os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD'].encode(),data[9:25],210000,32)
+          plain=AESGCM(key).decrypt(data[25:37],data[45:],data[:45])
+          assert len(plain)==struct.unpack('<Q',data[37:45])[0]
+          Path('old-fr.zip').write_bytes(plain)
+          print('ORIGINAL_FRENCH_DOCUMENTARY_RESTORED_AND_AUTHENTICATED')
+          PY
+      - name: Add 371 searchable French OCR pages to the original existing manual
+        shell: bash
+        run: |
+          set -euo pipefail
+          python session-source/tools/apply_rave_fr_ocr_to_documentary.py \
+            --snapshot old-fr.zip \
+            --ocr-gzip real-rave-french-ocr.jsonl.gz \
+            --output new-fr.zip
+      - name: Prove no document, manufacturer step or illustration was changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io,zipfile,sqlite3,json,tempfile
+          from pathlib import Path
+          details=json.loads(Path('new-fr.audit.json').read_text())
+          assert details['documents_added']==0
+          assert details['original_french_manuals_kept']==2
+          assert details['pages_ocr_added']==371
+          assert details['pages_with_ocr_text']==325
+          assert details['existing_records_preserved']
+          assert details['source_ocr_review_status']=='review_required'
+          assert details['source_pdf_sha256']=='9150471b587f0216408220cdfbc5dc19c00262d73dc447c6d10ab82a49961086'
+          with zipfile.ZipFile('new-fr.zip') as archive:
+            with tempfile.TemporaryDirectory() as tmp:
+              path=Path(tmp)/'doc.sqlite'
+              path.write_bytes(archive.read('mems_documentary_fr.sqlite'))
+              with sqlite3.connect(path) as db:
+                docs=db.execute('SELECT document_id,source_pages FROM documentary_documents ORDER BY document_id').fetchall()
+                assert docs==[('AKM7169FRE',20),('RCL0193FRE',371)]
+                procedures=db.execute("SELECT COUNT(*) FROM documentary_operations").fetchone()[0]
+                steps=db.execute("SELECT COUNT(*) FROM documentary_operation_steps").fetchone()[0]
+                assert procedures==417 and steps==3415
+                rows=db.execute("SELECT COUNT(*) FROM documentary_entries WHERE source_table='original_rave_fr_ocr_scan'").fetchone()[0]
+                assert rows==371
+                quoted=db.execute("SELECT source_text FROM documentary_entries WHERE entry_id='page-ocr:wmxn980f:00059'").fetchone()[0]
+                assert 'JOINT DE CULASSE' in quoted.upper()
+                search=db.execute("""
+                    SELECT COUNT(*) FROM documentary_fts
+                    WHERE documentary_fts MATCH '"culasse"'
+                    """).fetchone()[0]
+                assert search>0
+                print('ORIGINAL_FR_CORPUS_UNCHANGED',docs,
+                      'procedures',procedures,'steps',steps,'OCR_pages',rows)
+                print('FR_CULASSE_ORIGINAL_TEXT_AVAILABLE_IN_SQLITE_FTS',search)
+          PY
+      - name: Re-encrypt the merged French base using the existing owner admin password
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python session-source/tools/pack_mems_documentary.py \
+            --source-zip new-fr.zip --language fr \
+            --output MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted')
+          assert p.is_file() and p.read_bytes()[:8]==b'MEMSDOC1'
+          print('ACTUAL_FR_ENCRYPTED_UPGRADE_FOR_SESSION_IS_READY',p.stat().st_size)
+          PY
+      - name: Retain only encrypted candidate and auditable non-manual metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: MEMS-DOC-FR-371-WMXN980F-OCR-ENCRYPTED-AUDITED
+          path: |
+            MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted
+            new-fr.audit.json
+          retention-days: 7
+          if-no-files-found: error
