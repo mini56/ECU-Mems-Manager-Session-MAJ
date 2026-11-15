@@ -1,0 +1,76 @@
+name: STAGE - privately store Windows-verified French RAVE OCR language pack
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/stage-verified-fr-rave-ocr-draft.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  stage-private-draft-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TAG: mems-doc-fr-rave-371-ocr-20261115-private
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require successful actual Windows encrypted installation into SESSION
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status=$(gh run view 43702732458 --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json conclusion --jq .conclusion)
+          test "$status" = success || { echo "ACTUAL_WINDOWS_FR_RAVE_INSTALL_NOT_VERIFIED"; exit 1; }
+          echo 'ACTUAL_FRENCH_RAVE_WINDOWS_INSTALL_AND_SEARCH_CONFIRMED'
+      - name: Fetch only the already encrypted original-source pack and audit metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p staged
+          gh run download 43702406887 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --name MEMS-DOC-FR-371-WMXN980F-OCR-ENCRYPTED-AUDITED \
+            --dir staged
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('staged')
+          asset=root/'MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted'
+          audit=json.loads((root/'new-fr.audit.json').read_text(encoding='utf-8'))
+          assert asset.is_file() and asset.read_bytes()[:8]==b'MEMSDOC1'
+          assert hashlib.sha256(asset.read_bytes()).hexdigest()=='6813ef6edd703abee4f7cfeba9e344cfe754227ebc4b6a31afc7dcc09e5279ab'
+          assert audit['original_french_manuals_kept']==2
+          assert audit['documents_added']==0
+          assert audit['pages_ocr_added']==371
+          assert audit['existing_records_preserved']
+          print('REAL_FR_RAVE_371_OCR_ENCRYPTED_ASSET_AND_AUDIT_VERIFIED')
+          PY
+      - name: Publish NOTHING; save two files only in a private Draft Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            status=$(gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ \
+              --json isDraft --jq .isDraft)
+            test "$status" = true || { echo "REFUSE_PUBLIC_RELEASE"; exit 1; }
+            echo 'EXISTING_PRIVATE_DRAFT_REMAINS_PRIVATE'
+            exit 0
+          fi
+          gh release create "$TAG" \
+            staged/MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted \
+            staged/new-fr.audit.json \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --draft \
+            --title "RAVE français MINI — 371 pages reconnues, SESSION 144" \
+            --notes "Base documentaire française cumulative: RCL0193FRE 371 pages et AKM7169FRE 20 pages. Ajout de 371 références OCR (325 avec texte). 417 opérations et 3415 étapes d'origine inchangées, toutes les images existantes conservées. Test réel de l'installation AES-GCM et recherche par le lecteur Qt SESSION sous Windows réussi. OCR non relu, marqué review_required, ce n'est pas une nouvelle procédure validée. Les autres PDF français RAVE ne sont pas inclus. Brouillon privé uniquement : aucun changement du manifeste public ni de mise à jour automatique."
+          gh release view "$TAG" --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --json isDraft,assets,tagName \
+            --jq 'if (.isDraft and (.assets|length)==2) then "PRIVATE_FR_RAVE_371_PACK_READY" else error("PRIVATE_DRAFT_VALIDATION_FAILED") end'
