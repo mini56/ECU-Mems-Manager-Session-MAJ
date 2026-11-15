@@ -66,7 +66,7 @@ jobs:
           with zipfile.ZipFile(io.BytesIO(plain)) as archive:
               assert archive.testzip() is None
               names=archive.namelist()
-              assert len(names)==346 and all(n=='mems_documentary_fr.sqlite' or re.fullmatch(r'images/[A-Za-z0-9_.-]+\\.(jpg|png|webp)',n,re.I) for n in names)
+              assert len(names)==346 and all(n=='mems_documentary_fr.sqlite' or re.fullmatch(r'images/[A-Za-z0-9_.-]+\.(jpg|png|webp)',n,re.I) for n in names)
               root=Path('base-fr-existante')
               for name in names:
                   target=root/name
