@@ -1,0 +1,77 @@
+name: AUDIT - source comparison of real uploaded French RAVE vs installed FR manual
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/audit-rave-fr-source-match.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare-real-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image libraries and decryption
+        run: python -m pip install --disable-pip-version-check pillow cryptography
+      - name: Fetch authenticated existing FR snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p input
+          gh run download 43630398670 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --name FR-EN-unified-databases-audited-encrypted-only \
+            --dir input
+          test -f input/MEMS-DOC-FR-UNIFIED-AUDIT-20261114.encrypted
+      - name: Compare 22 representative pages against existing RCL0193FRE images
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python - <<'PY'
+          from PIL import Image
+          import hashlib,io,os,sqlite3,struct,tempfile,zipfile
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          samples=[[1,"005c085c001c1db25e245c8319381ad80c580cdf0d9b0c5b0c5b0858005c005a"],[3,"d5acd82cdc96d914d600d1408928c920c9380000002000000000000000000000"],[6,"d020c7da709e709a82cff0fef8dad49af0fb009f109e009a00de00dec0dac09a"],[18,"632cc4cc84c0d8c0c0c8e4d0d8c0c4c0c4c0c4c8c098c0d4000000008000c728"],[30,"c06cd06ce03860385ae81ae01ee034c01e60c660c0d0c8c0c0d0d00400c068"],[36,"d46c806cc100e42cc100c4c0c0409040c860c4808b008300930083004080c0e8"],[52,"d43cc0bcc0c0d0c048f4f0c030c0c8004800c400c4000000200000008000c008"],[59,"c420c0188868c870e0d0e4c8e8e4e8e8c0c878e0f8d47000e040d000d400e100"],[100,"d74cc0ccc880c4f8d0e060e4ccc2c0d0c8c0c086c000c000000040008000c018"],[106,"dcdcc05cc20059906ed86280726033400c00c8c0c0c0c4c0000000008000c0c8"],[124,"ec5cc8c480807878ecf0ecb8cc78c0c0c0c4c0d0c0c000c0500000408000c018"],[152,"d6ecc2ccc0c0c0c8d8c878c040d0c400c850e000c000c400cc0000008000c008"],[178,"d46ac06ec00c58f864e84cf4ccb4d8c8c0c4480000000000000000008000c008"],[196,"d66cc8ecc0c0c4c0e2004840cc00c400c000c400c400c800c00000008000c018"],[219,"cc00c034a8dcc0f0c0d038d8c830cce0c068e4c4f0c0e8006400d000d000e100"],[236,"d43ac0eac8a8c8b2c4ccc4c080c4c0c0c8d4c8c8b0c000c000c400c48000c008"],[245,"9810c464f068dcd8f4b04060d0d4c4c800c010f000000000000000001000e000"],[270,"fa2cf06e386078f038e0f8c0c888e8c4ccc8e0e4d060d000e000c0000100c018"],[300,"d46cc0cc80a0c05000d080d800cc0070007800f800c400c000d000c08000c030"],[330,"d7acc0cc90f0c4f8c070f0e4f8d038c4c8c0ccc0c000e400000000008000c018"],[350,"d7acc8ec907070b8f0d8d4c2c0c0c4c000c044c000000040000000008000c018"],[371,"c420c08888c440c0e468c400c400b8007800e000c000c000c00000001000e00c"]]
+          asset=Path("input/MEMS-DOC-FR-UNIFIED-AUDIT-20261114.encrypted")
+          raw=asset.read_bytes()
+          assert raw[:8]==b'MEMSDOC1'
+          key=hashlib.pbkdf2_hmac('sha256',os.environ['MEMS_DOCUMENTARY_PUBLISH_PASSWORD'].encode(),raw[9:25],210000,32)
+          data=AESGCM(key).decrypt(raw[25:37],raw[45:],raw[:45])
+          assert len(data)==struct.unpack('<Q',raw[37:45])[0]
+          with zipfile.ZipFile(io.BytesIO(data)) as archive:
+              with tempfile.TemporaryDirectory() as folder:
+                  dbpath=Path(folder)/'fr.sqlite'
+                  dbpath.write_bytes(archive.read('mems_documentary_fr.sqlite'))
+                  with sqlite3.connect(dbpath) as db:
+                      pages=dict(db.execute("SELECT physical_page,relative_path FROM documentary_images WHERE document_id='RCL0193FRE'"))
+                      docs=db.execute("SELECT document_id,source_filename,source_pages,source_sha256 FROM documentary_documents").fetchall()
+                      print("CURRENT_FRENCH_DOCUMENTARY_DOCS",docs)
+                  def phash(im):
+                      img=im.convert('L').resize((17,16),Image.Resampling.LANCZOS)
+                      px=list(img.getdata())
+                      return int(''.join('1' if px[y*17+x]>px[y*17+x+1] else '0' for y in range(16) for x in range(16)),2)
+                  matched=0;considered=0;distances=[]
+                  for number,expected in samples:
+                      image_name=pages.get(number)
+                      if image_name is None:
+                          print('MISSING_ORIGINAL_RCL_IMAGE',number)
+                          continue
+                      image=Image.open(io.BytesIO(archive.read(image_name)))
+                      distance=(phash(image)^int(expected,16)).bit_count()
+                      considered+=1;distances.append(distance)
+                      print('PAGE_ORIGINAL_CONTENT_COMPARISON',number,'distance',distance)
+                      if distance<=36:matched+=1
+                  print('SAME_FRENCH_ORIGINAL_EVIDENCE',matched,'of',considered,'max',max(distances,default=0),'median',sorted(distances)[len(distances)//2] if distances else None)
+                  if considered<12:raise SystemExit('TOO_FEW_SAMPLED_EXISTING_PAGES')
+                  if matched>=int(considered*.70):print('RCL0193FRE_PROBABLE_SAME_PAGE_CONTENT')
+                  else:print('RCL0193FRE_DIFFERENT_OR_RENDERED_DIFFERENT_SOURCE')
+          PY
