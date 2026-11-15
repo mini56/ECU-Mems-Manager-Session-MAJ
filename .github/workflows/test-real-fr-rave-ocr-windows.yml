@@ -1,0 +1,77 @@
+name: WINDOWS - install real 371-page French RAVE OCR pack into SESSION
+on:
+  push:
+    branches: [audit-unified-language-bases-20261114]
+    paths:
+      - '.github/workflows/test-real-fr-rave-ocr-windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-windows-encrypted-install:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout identical SESSION 144 documented source
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-ia-documentary-single-source-20261114
+          path: session-source
+      - name: Obtain the uploaded-manual-derived encrypted French release candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p real-fr-ocr
+          gh run download 43702406887 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --name MEMS-DOC-FR-371-WMXN980F-OCR-ENCRYPTED-AUDITED \
+            --dir real-fr-ocr
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('real-fr-ocr/MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted')
+          assert p.is_file()
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='6813ef6edd703abee4f7cfeba9e344cfe754227ebc4b6a31afc7dcc09e5279ab'
+          assert p.read_bytes()[:8]==b'MEMSDOC1'
+          report=json.loads(Path('real-fr-ocr/new-fr.audit.json').read_text(encoding='utf-8'))
+          assert report['pages_ocr_added']==371 and report['documents_added']==0
+          assert report['existing_records_preserved']
+          print('FR_OCR_REAL_MANUAL_ENCRYPTED_CANDIDATE_VERIFIED')
+          PY
+      - name: Install exact Qt 5.15.2 Windows build environment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check 'aqtinstall==3.3.0'
+          if($LASTEXITCODE -ne 0){throw 'QT_TOOLS_FAILED'}
+          $sevenZip=(Get-Command 7z.exe -ErrorAction Stop).Source
+          python -m aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -m qtcharts -O C:\Qt --external $sevenZip
+          if($LASTEXITCODE -ne 0){throw 'QT_5_15_FAILED'}
+      - name: Build real SESSION C++ documentary encrypted installer plus reader
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          cmake -S session-source -B session-source/build-fr-ocr-real -A x64 -DCMAKE_PREFIX_PATH='C:/Qt/5.15.2/msvc2019_64' -DMEMS_USE_BUNDLED_LIBROSCO_X64=ON -DMEMS_RUN_REFERENCE_SELFTEST_POST_BUILD=OFF
+          if($LASTEXITCODE -ne 0){throw 'SESSION_SOURCE_CONFIGURE_FAILED'}
+          cmake --build session-source/build-fr-ocr-real --config Release --target mems_documentary_real_fr_ocr_install_selftest --parallel
+          if($LASTEXITCODE -ne 0){throw 'REAL_FR_RAVE_INSTALL_SELFTEST_BUILD_FAILED'}
+      - name: Install the ACTUAL encrypted French pack and search with SESSION reader
+        shell: pwsh
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:MEMS_DOCUMENTARY_PUBLISH_PASSWORD.Length -lt 12){throw 'ADMIN_PACK_SECRET_NOT_AVAILABLE'}
+          $bin=(Resolve-Path 'session-source/build-fr-ocr-real/Release').Path
+          $qt='C:\Qt\5.15.2\msvc2019_64'
+          & "$qt/bin/windeployqt.exe" --release --no-translations --dir $bin "$bin/mems_documentary_real_fr_ocr_install_selftest.exe"
+          if($LASTEXITCODE -ne 0){throw 'QT_DLL_DEPLOY_FAILED'}
+          $asset=(Resolve-Path 'real-fr-ocr/MEMS-DOC-FR-RAVE-WMXN980F-OCR-371-20261115.encrypted').Path
+          & "$bin/mems_documentary_real_fr_ocr_install_selftest.exe" $asset
+          if($LASTEXITCODE -ne 0){throw 'REAL_371_PAGE_RAVE_FR_WINDOWS_INSTALL_OR_SEARCH_FAILED'}
+          Write-Host 'PASS_REAL_FRENCH_RAVE_371_WINDOWS_ENCRYPTED_INSTALL_SEARCH_417_PROCEDURES_3415_STEPS'
