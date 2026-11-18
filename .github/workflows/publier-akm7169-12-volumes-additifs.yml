@@ -1,0 +1,180 @@
+name: "AKM7169 FR 12 volumes - publication additive sécurisée"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publier-akm7169-12-volumes-additifs.yml"
+  workflow_dispatch:
+    inputs:
+      droits_de_diffusion:
+        description: "Je confirme être autorisé à redistribuer les 12 volumes traduits et leurs images"
+        required: true
+        type: choice
+        options: [NON, OUI]
+        default: NON
+permissions:
+  contents: write
+concurrency:
+  group: official-documentary-maj-manifest
+  cancel-in-progress: false
+env:
+  TAG: "mems-doc-fr-akm7169-v12-20261118"
+  SOURCE: "AKM7169_12_VOLUMES_FR_PACK_SOURCE_SESSION.zip"
+  SOURCE_SHA: "2c39fc66bfc83c898595d1caac893f8c73d83f30f3a7fcb9cee28ad57f77b690"
+  PACK: "MEMS-DOC-FR-AKM7169-12-VOLUMES-20261118.encrypted"
+  NEW_VERSION: "fr-akm7169-v12-20261118"
+jobs:
+  preparer-brouillon:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Préparer la Release non publique pour le ZIP d'origine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
+              --title "AKM7169 - 12 volumes FR - brouillon privé" \
+              --notes "Source à déposer : AKM7169_12_VOLUMES_FR_PACK_SOURCE_SESSION.zip. Ne pas rendre publique cette Release : elle contient temporairement le fichier source. Utiliser ensuite le workflow de publication avec confirmation des droits. Il retire la source avant publication et ne diffuse que le pack chiffré MEMSDOC1."
+          fi
+          echo "DRAFT_PREPARED_SOURCE_NOT_PUBLISHED"
+  publier-apres-validations:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Vérifier les droits déclarés et le brouillon
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RIGHTS: ${{ inputs.droits_de_diffusion }}
+        run: |
+          set -euo pipefail
+          if [ "$RIGHTS" != "OUI" ]; then echo "REDISTRIBUTION_RIGHTS_NOT_CONFIRMED"; exit 1; fi
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+          mkdir -p received
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$SOURCE" --dir received
+          echo "$SOURCE_SHA  received/$SOURCE" | sha256sum --check --status
+          echo "SOURCE_SHA256_AND_RIGHTS_CONFIRMED"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-documentary-additive-session-161-20261118
+          path: session-source
+      - name: Installer chiffrement authentifié
+        run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+      - name: Valider le vrai schéma SESSION et tous les fac-similés
+        run: |
+          set -euo pipefail
+          PYTHONPATH=session-source/tools python3 - <<'PY'
+          from pathlib import Path
+          from pack_mems_documentary import inspect_zip
+          import json,sqlite3,tempfile,zipfile
+          p=Path("received/AKM7169_12_VOLUMES_FR_PACK_SOURCE_SESSION.zip")
+          verified=inspect_zip(p,"fr")
+          with zipfile.ZipFile(p) as z, tempfile.NamedTemporaryFile(suffix=".sqlite") as t:
+              t.write(z.read("mems_documentary_fr.sqlite"));t.flush()
+              db=sqlite3.connect("file:"+t.name+"?mode=ro",uri=True)
+              documents=db.execute("SELECT document_id,source_revision,source_sha256,source_pages,edition_code FROM documentary_documents ORDER BY document_id").fetchall()
+              assert len(documents)==12 and sum(d[3] for d in documents)==1110
+              assert [d[0] for d in documents]==["AKM7169ENG_FR_TRANSLATION_V%02d"%n for n in range(1,13)]
+              assert db.execute("SELECT COUNT(*) FROM documentary_images").fetchone()[0]==1110
+              assert db.execute("SELECT COUNT(*) FROM documentary_fts").fetchone()[0]==1110
+              assert db.execute("SELECT COUNT(*) FROM documentary_operations").fetchone()[0]==0
+              assert db.execute("SELECT publication_status FROM documentary_database").fetchone()[0]=="source_inventory"
+              docs=[{"document_id":a,"source_revision":b,"source_sha256":c,"source_pages":d,"edition":e} for a,b,c,d,e in documents]
+              Path("documents-12.json").write_text(json.dumps(docs,ensure_ascii=False))
+              db.close()
+          m=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          fr=m["documentary_bases"]["fr"]
+          assert fr["version"]=="fr-mems-doc-fr-6-20261115" and fr["document_count"]==6,"EXISTING_FR_MANIFEST_CHANGED"
+          assert not {d["document_id"] for d in fr["published_documents"]}.intersection(d["document_id"] for d in docs),"DOCUMENT_ID_COLLISION"
+          print("PASS_12_SOURCES_1110_IMAGES_ALL_SHA_VERIFIED_AND_OLD_6_UNCHANGED",verified["source_zip_sha256"])
+          PY
+      - name: Chiffrer avec le secret administrateur existant
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          test -n "$MEMS_DOCUMENTARY_PUBLISH_PASSWORD" || { echo "SECRET_ADMIN_ABSENT"; exit 1; }
+          mkdir -p encrypted
+          python3 session-source/tools/pack_mems_documentary.py \
+            --source-zip "received/$SOURCE" --language fr \
+            --output "encrypted/$PACK" \
+            --password-env MEMS_DOCUMENTARY_PUBLISH_PASSWORD \
+            --report encrypted/audit.json
+          python3 - <<'PY'
+          from pathlib import Path
+          from bases.tools.verify_licensed_release_and_enable import validate_encrypted
+          import os
+          sha,documents=validate_encrypted(Path("encrypted")/os.environ["PACK"],"fr",os.environ["MEMS_DOCUMENTARY_PUBLISH_PASSWORD"])
+          assert len(documents)==12 and sum(x["source_pages"] for x in documents)==1110
+          print("PACK_MEMSDOC1_AUDITED_SHA256",sha)
+          PY
+      - name: Préparer le catalogue additionnel sans écraser l'ancien pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib,os
+          m=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          fr=m["documentary_bases"]["fr"]
+          assert fr["version"]=="fr-mems-doc-fr-6-20261115"
+          docs=json.loads(Path("documents-12.json").read_text(encoding="utf-8"))
+          digest=hashlib.sha256((Path("encrypted")/os.environ["PACK"]).read_bytes()).hexdigest()
+          m["documentary_bases"]["fr"]={
+            "language":"fr","description":"Français : AKM7169, 12 volumes traduits",
+            "available":True,"version":os.environ["NEW_VERSION"],
+            "release_url":"https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/"+os.environ["TAG"]+"/"+os.environ["PACK"],
+            "sha256":digest,"installation_password_required":True,"encrypted_package_required":True,
+            "database_file":"mems_documentary_fr.sqlite",
+            "document_count":12,"source_pages":1110,"publication_status":"source_inventory",
+            "published_documents":docs,
+            "previous_packs":[fr],
+            "notes":"SESSION 161 installe le nouveau pack indépendamment des 6 documents déjà installés."
+          }
+          result=json.dumps(m,ensure_ascii=False,indent=2)+"\n"
+          assert len(result.encode("utf-8"))<=256*1024
+          Path("manifest.new.json").write_text(result,encoding="utf-8")
+          print("FR_NEW_PACK_CATALOG_PREPARED_PREVIOUS_PACK_PRESERVED")
+          PY
+      - name: Publier uniquement le fichier chiffré
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+          gh release upload "$TAG" "encrypted/$PACK" --repo "$GITHUB_REPOSITORY"
+          gh release delete-asset "$TAG" "$SOURCE" --repo "$GITHUB_REPOSITORY" --yes
+          actual="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          test "$actual" = "$PACK" || { echo "UNENCRYPTED_ASSET_OR_UNEXPECTED_FILE_IN_DRAFT"; exit 1; }
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          echo "ONLY_ENCRYPTED_PACK_PUBLIC"
+      - name: Activer la nouvelle base dans le manifeste français
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || {
+            echo "CATALOG_CHANGED_DURING_BUILD_DO_NOT_OVERWRITE"; exit 1;
+          }
+          cp manifest.new.json manifest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          git commit -m "FR AKM7169: activer le pack additif 12 volumes sans perdre les 6 originaux"
+          git push origin HEAD:main
+          echo "SESSION_161_FR_AKM7169_DOWNLOAD_READY"
