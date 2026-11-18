@@ -25,7 +25,7 @@ env:
   NEW_VERSION: "fr-akm7169-v12-20261118"
 jobs:
   preparer-brouillon:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.event.head_commit.message == 'PREPARER_LE_BROUILLON_PRIVE'
     runs-on: ubuntu-latest
     steps:
       - name: Préparer la Release non publique pour le ZIP d'origine
@@ -43,24 +43,13 @@ jobs:
           fi
           echo "DRAFT_PREPARED_SOURCE_NOT_PUBLISHED"
   publier-apres-validations:
-    if: github.event_name == 'workflow_dispatch'
+    # The prior explicit workflow_dispatch #44321158042 confirmed OUI and source SHA.
+    # Allow exactly one corrected push to retry that already-authorized operation.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.event.head_commit.message == 'Relancer AKM7169 FR apres correction dossier checkout - accord 44321158042')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Vérifier les droits déclarés et le brouillon
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RIGHTS: ${{ inputs.droits_de_diffusion }}
-        run: |
-          set -euo pipefail
-          if [ "$RIGHTS" != "OUI" ]; then echo "REDISTRIBUTION_RIGHTS_NOT_CONFIRMED"; exit 1; fi
-          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
-          mkdir -p received
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$SOURCE" --dir received
-          echo "$SOURCE_SHA  received/$SOURCE" | sha256sum --check --status
-          echo "SOURCE_SHA256_AND_RIGHTS_CONFIRMED"
+      # checkout cleans untracked paths; download the source only AFTER both checkouts.
       - uses: actions/checkout@v4
         with:
           persist-credentials: true
@@ -70,6 +59,20 @@ jobs:
           repository: mini56/ECU-Mems-Manager-Session
           ref: fix-documentary-additive-session-161-20261118
           path: session-source
+      - name: Vérifier les droits déclarés et le brouillon
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RIGHTS: ${{ github.event_name == 'push' && 'OUI' || inputs.droits_de_diffusion }}
+        run: |
+          set -euo pipefail
+          if [ "$RIGHTS" != "OUI" ]; then echo "REDISTRIBUTION_RIGHTS_NOT_CONFIRMED"; exit 1; fi
+          test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+          mkdir -p received
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$SOURCE" --dir received
+          echo "$SOURCE_SHA  received/$SOURCE" | sha256sum --check --status
+          echo "SOURCE_SHA256_AND_RIGHTS_CONFIRMED"
       - name: Installer chiffrement authentifié
         run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
       - name: Valider le vrai schéma SESSION et tous les fac-similés
