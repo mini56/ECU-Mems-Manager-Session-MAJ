@@ -115,6 +115,12 @@ jobs:
                       "SELECT COUNT(*) FROM documentary_model_years y "
                       "JOIN documentary_entries e USING(document_id,source_revision,entry_id) "
                       "WHERE e.document_id='RCL0193FRE' AND e.source_page=251").fetchone()[0]==35
+                  scopes=dict(db.execute(
+                      "SELECT scope_key,COUNT(*) FROM documentary_model_years GROUP BY scope_key"))
+                  assert scopes=={
+                      "SCOPE-RCL0193FRE-MINI-VIN134455":5003,
+                      "SCOPE-RCL0193FRE-MPI-VIN134455":691
+                  }, "MINI_MPI_PROVENANCE_COUNTS_CHANGED"
                   assert db.execute(
                       "SELECT COUNT(DISTINCT vehicle_years) FROM documentary_model_years"
                   ).fetchone()[0]==1
