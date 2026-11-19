@@ -1,0 +1,62 @@
+name: AUDIT années des trois bases MAJ réelles - sans publication
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-annees-bases-maj-20261119.yml'
+permissions:
+  contents: read
+jobs:
+  audit-real-sqlite:
+    name: Contrôler les années dans les SQLite chiffrées FR et EN en lecture seule
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Lire le catalogue officiel MAJ sans modifier les bases
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Installer le lecteur cryptographique AES-GCM
+        run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+      - name: Télécharger exactement les trois packs publiés
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p packs
+          python3 - <<'PY' > sources.tsv
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+          m=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          packs=[m["documentary_bases"]["fr"],
+                 m["documentary_bases"]["fr"]["previous_packs"][0],
+                 m["documentary_bases"]["en"]]
+          for p in packs:
+              parts=urlparse(p["release_url"]).path.split("/")
+              assert "download" in parts and parts[-1].endswith(".encrypted")
+              print(parts[-2]+"\t"+parts[-1])
+          PY
+          while IFS=$'\t' read -r tag asset; do
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+              --pattern "$asset" --dir packs --clobber
+          done < sources.tsv
+          echo "THREE_OFFICIAL_ENCRYPTED_ASSETS_DOWNLOADED"
+      - name: Authentifier, ouvrir en mémoire et auditer les enregistrements de périodes
+        shell: bash
+        env:
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 bases/tools/audit_published_model_years.py \
+            --manifest manifest.json --directory packs \
+            --output audit-annees-maj-20261119.json
+      - name: Conserver seulement le rapport des métadonnées, jamais les bases
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-annees-maj-3-packs-20261119
+          path: audit-annees-maj-20261119.json
+          if-no-files-found: error
+          retention-days: 7
