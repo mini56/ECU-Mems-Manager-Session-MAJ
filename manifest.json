@@ -20,192 +20,195 @@
   "documentary_bases": {
     "fr": {
       "language": "fr",
-      "description": "Français : AKM7169, 12 volumes traduits",
+      "description": "Français : RAVE 6 documents, années constructeur vérifiées",
       "available": true,
-      "version": "fr-akm7169-v12-20261118",
-      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-fr-akm7169-v12-20261118/MEMS-DOC-FR-AKM7169-12-VOLUMES-20261118.encrypted",
-      "sha256": "65048cce95d0d889df7d4bb84ab9b1d9d1c584beb9c9e0af5c06bf480d5e7c3a",
+      "version": "fr-rave6-years-20261119",
+      "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-fr-6-years-20261119/MEMS-DOC-FR-RAVE6-ANNEES-20261119.encrypted",
+      "sha256": "0aa6c2c375f75920afa5f77eb5f9ff4bd8cb9811fc722b92b5414b7d8c3dae6e",
       "installation_password_required": true,
       "encrypted_package_required": true,
       "database_file": "mems_documentary_fr.sqlite",
-      "document_count": 12,
+      "document_count": 6,
       "source_pages": 1110,
       "publication_status": "source_inventory",
       "published_documents": [
         {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V01",
-          "source_revision": "translation-pdf-073fb0788ef87550312b1d54",
-          "source_sha256": "073fb0788ef87550312b1d54ed23c05864e13d110f7ecfcec4ae1bbcddc6ec0e",
-          "source_pages": 7,
-          "edition": "AKM7169ENG traduction française V01"
+          "document_id": "AKM7169FRE",
+          "source_revision": "MEMS-SPI-20P-ORIGINAL-FR-1993",
+          "edition": "AKM7169FRE",
+          "source_sha256": "37cd0434347fe4009963d075e4b91b0b21ebc905bae5657519a8080c3026d4f5",
+          "source_pages": 20
         },
         {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V02",
-          "source_revision": "translation-pdf-31df0e6e3f5d07fe102dd833",
-          "source_sha256": "31df0e6e3f5d07fe102dd83365d0168765b0587a938c99046b07d2bb622aada3",
-          "source_pages": 48,
-          "edition": "AKM7169ENG traduction française V02"
+          "document_id": "DOC_CDXN010F_3BC9A3B46484",
+          "source_revision": "source-3bc9a3b46484323b5d769110",
+          "edition": "cdxn010f.pdf",
+          "source_sha256": "3bc9a3b46484323b5d769110d4c46c3c4e9215b48013273a2799ea7eea654f8e",
+          "source_pages": 74
         },
         {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V03",
-          "source_revision": "translation-pdf-8d139be32aecb3a3bd3b2937",
-          "source_sha256": "8d139be32aecb3a3bd3b29373290aa5d473ef07e437b8824c90cfd7e619e753e",
-          "source_pages": 47,
-          "edition": "AKM7169ENG traduction française V03"
+          "document_id": "DOC_ELXN010F_91EFD3F4C8DA",
+          "source_revision": "source-91efd3f4c8da89453425c3f5",
+          "edition": "elxn010f.pdf",
+          "source_sha256": "91efd3f4c8da89453425c3f5041c9bdc0def45b20dfe44e3c0dbba03f07cfd9d",
+          "source_pages": 210
         },
         {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V04",
-          "source_revision": "translation-pdf-b9bdc5efa453fa52da3a8702",
-          "source_sha256": "b9bdc5efa453fa52da3a8702d8cda201029ddafb72aaef7ef9e6f52748158337",
-          "source_pages": 112,
-          "edition": "AKM7169ENG traduction française V04"
+          "document_id": "DOC_HR01795F_96EA0F759615",
+          "source_revision": "source-96ea0f75961566c1c3009361",
+          "edition": "hr01795f.PDF",
+          "source_sha256": "96ea0f75961566c1c30093617003c2b85571d772f4e5684f487018738d4f6a83",
+          "source_pages": 98
         },
         {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V05",
-          "source_revision": "translation-pdf-e1d06bbab9eaf557b296a36b",
-          "source_sha256": "e1d06bbab9eaf557b296a36bfcace4e32db20459f8b5955d52429a6c5ae96cf1",
-          "source_pages": 78,
-          "edition": "AKM7169ENG traduction française V05"
+          "document_id": "DOC_IR07301F_EEDC3668AA41",
+          "source_revision": "source-eedc3668aa41d30e3760c560",
+          "edition": "ir07301f.pdf",
+          "source_sha256": "eedc3668aa41d30e3760c560c68db0323e72ec64ffaacec58e2d6cc9c9433e69",
+          "source_pages": 24
         },
         {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V06",
-          "source_revision": "translation-pdf-780d7b9d54853758baee2525",
-          "source_sha256": "780d7b9d54853758baee2525eb7922268ac7fe580bb9b175b3e4b8d6dd10a119",
-          "source_pages": 49,
-          "edition": "AKM7169ENG traduction française V06"
-        },
-        {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V07",
-          "source_revision": "translation-pdf-ede671cd034e13b286b03e02",
-          "source_sha256": "ede671cd034e13b286b03e024edf418b8f67b8d7d3e1e3f70daaae810bedf891",
-          "source_pages": 99,
-          "edition": "AKM7169ENG traduction française V07"
-        },
-        {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V08",
-          "source_revision": "translation-pdf-f9208f87b8be10d6ab52e0c4",
-          "source_sha256": "f9208f87b8be10d6ab52e0c4867ad513f13e821da57c4efd7103e521340bb04e",
-          "source_pages": 179,
-          "edition": "AKM7169ENG traduction française V08"
-        },
-        {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V09",
-          "source_revision": "translation-pdf-9885875297b141b0e71caae6",
-          "source_sha256": "9885875297b141b0e71caae643b233415587c12a0f97cf0e249da4c3a4779e5f",
-          "source_pages": 124,
-          "edition": "AKM7169ENG traduction française V09"
-        },
-        {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V10",
-          "source_revision": "translation-pdf-06913da23dc86205ca179c5e",
-          "source_sha256": "06913da23dc86205ca179c5ec93c30b61afb154f15b0ba6a48c344856ce55a2c",
-          "source_pages": 256,
-          "edition": "AKM7169ENG traduction française V10"
-        },
-        {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V11",
-          "source_revision": "translation-pdf-aea74876200883c9afe2fd21",
-          "source_sha256": "aea74876200883c9afe2fd213e70ce3f3fa0734ca71f5144aba1ed71e0f0ccbc",
-          "source_pages": 53,
-          "edition": "AKM7169ENG traduction française V11"
-        },
-        {
-          "document_id": "AKM7169ENG_FR_TRANSLATION_V12",
-          "source_revision": "translation-pdf-6e47cad8e43a09d5632b50c6",
-          "source_sha256": "6e47cad8e43a09d5632b50c6e13614b8344bba6748b0a9dea41d379a1ed1a323",
-          "source_pages": 58,
-          "edition": "AKM7169ENG traduction française V12"
+          "document_id": "RCL0193FRE",
+          "source_revision": "source-original-auditee-371",
+          "edition": "RCL0193FRE",
+          "source_sha256": "0c7fef28d0d0f0673ba321d6625a019c005823103caa98afb3258114e1fec713",
+          "source_pages": 371
         }
       ],
       "previous_packs": [
         {
           "language": "fr",
-          "description": "Français",
+          "description": "Français : AKM7169, 12 volumes traduits",
           "available": true,
-          "version": "fr-mems-doc-fr-6-20261115",
-          "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-fr-6-20261115/MEMS-DOC-FR-RAVE-6-DOCUMENTS-20261115.encrypted",
-          "sha256": "ab260c28b97bff3f88509fc5a00ed4feed983019c1c3f16a14d33be69118e8c7",
+          "version": "fr-akm7169-v12-20261118",
+          "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-doc-fr-akm7169-v12-20261118/MEMS-DOC-FR-AKM7169-12-VOLUMES-20261118.encrypted",
+          "sha256": "65048cce95d0d889df7d4bb84ab9b1d9d1c584beb9c9e0af5c06bf480d5e7c3a",
           "installation_password_required": true,
           "encrypted_package_required": true,
           "database_file": "mems_documentary_fr.sqlite",
-          "document_count": 6,
+          "document_count": 12,
+          "source_pages": 1110,
+          "publication_status": "source_inventory",
           "published_documents": [
             {
-              "document_id": "AKM7169FRE",
-              "source_revision": "MEMS-SPI-20P-ORIGINAL-FR-1993",
-              "edition": "AKM7169FRE",
-              "source_sha256": "37cd0434347fe4009963d075e4b91b0b21ebc905bae5657519a8080c3026d4f5",
-              "source_pages": 20
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V01",
+              "source_revision": "translation-pdf-073fb0788ef87550312b1d54",
+              "source_sha256": "073fb0788ef87550312b1d54ed23c05864e13d110f7ecfcec4ae1bbcddc6ec0e",
+              "source_pages": 7,
+              "edition": "AKM7169ENG traduction française V01"
             },
             {
-              "document_id": "DOC_CDXN010F_3BC9A3B46484",
-              "source_revision": "source-3bc9a3b46484323b5d769110",
-              "edition": "cdxn010f.pdf",
-              "source_sha256": "3bc9a3b46484323b5d769110d4c46c3c4e9215b48013273a2799ea7eea654f8e",
-              "source_pages": 74
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V02",
+              "source_revision": "translation-pdf-31df0e6e3f5d07fe102dd833",
+              "source_sha256": "31df0e6e3f5d07fe102dd83365d0168765b0587a938c99046b07d2bb622aada3",
+              "source_pages": 48,
+              "edition": "AKM7169ENG traduction française V02"
             },
             {
-              "document_id": "DOC_ELXN010F_91EFD3F4C8DA",
-              "source_revision": "source-91efd3f4c8da89453425c3f5",
-              "edition": "elxn010f.pdf",
-              "source_sha256": "91efd3f4c8da89453425c3f5041c9bdc0def45b20dfe44e3c0dbba03f07cfd9d",
-              "source_pages": 210
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V03",
+              "source_revision": "translation-pdf-8d139be32aecb3a3bd3b2937",
+              "source_sha256": "8d139be32aecb3a3bd3b29373290aa5d473ef07e437b8824c90cfd7e619e753e",
+              "source_pages": 47,
+              "edition": "AKM7169ENG traduction française V03"
             },
             {
-              "document_id": "DOC_HR01795F_96EA0F759615",
-              "source_revision": "source-96ea0f75961566c1c3009361",
-              "edition": "hr01795f.PDF",
-              "source_sha256": "96ea0f75961566c1c30093617003c2b85571d772f4e5684f487018738d4f6a83",
-              "source_pages": 98
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V04",
+              "source_revision": "translation-pdf-b9bdc5efa453fa52da3a8702",
+              "source_sha256": "b9bdc5efa453fa52da3a8702d8cda201029ddafb72aaef7ef9e6f52748158337",
+              "source_pages": 112,
+              "edition": "AKM7169ENG traduction française V04"
             },
             {
-              "document_id": "DOC_IR07301F_EEDC3668AA41",
-              "source_revision": "source-eedc3668aa41d30e3760c560",
-              "edition": "ir07301f.pdf",
-              "source_sha256": "eedc3668aa41d30e3760c560c68db0323e72ec64ffaacec58e2d6cc9c9433e69",
-              "source_pages": 24
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V05",
+              "source_revision": "translation-pdf-e1d06bbab9eaf557b296a36b",
+              "source_sha256": "e1d06bbab9eaf557b296a36bfcace4e32db20459f8b5955d52429a6c5ae96cf1",
+              "source_pages": 78,
+              "edition": "AKM7169ENG traduction française V05"
             },
             {
-              "document_id": "RCL0193FRE",
-              "source_revision": "source-original-auditee-371",
-              "edition": "RCL0193FRE",
-              "source_sha256": "0c7fef28d0d0f0673ba321d6625a019c005823103caa98afb3258114e1fec713",
-              "source_pages": 371
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V06",
+              "source_revision": "translation-pdf-780d7b9d54853758baee2525",
+              "source_sha256": "780d7b9d54853758baee2525eb7922268ac7fe580bb9b175b3e4b8d6dd10a119",
+              "source_pages": 49,
+              "edition": "AKM7169ENG traduction française V06"
+            },
+            {
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V07",
+              "source_revision": "translation-pdf-ede671cd034e13b286b03e02",
+              "source_sha256": "ede671cd034e13b286b03e024edf418b8f67b8d7d3e1e3f70daaae810bedf891",
+              "source_pages": 99,
+              "edition": "AKM7169ENG traduction française V07"
+            },
+            {
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V08",
+              "source_revision": "translation-pdf-f9208f87b8be10d6ab52e0c4",
+              "source_sha256": "f9208f87b8be10d6ab52e0c4867ad513f13e821da57c4efd7103e521340bb04e",
+              "source_pages": 179,
+              "edition": "AKM7169ENG traduction française V08"
+            },
+            {
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V09",
+              "source_revision": "translation-pdf-9885875297b141b0e71caae6",
+              "source_sha256": "9885875297b141b0e71caae643b233415587c12a0f97cf0e249da4c3a4779e5f",
+              "source_pages": 124,
+              "edition": "AKM7169ENG traduction française V09"
+            },
+            {
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V10",
+              "source_revision": "translation-pdf-06913da23dc86205ca179c5e",
+              "source_sha256": "06913da23dc86205ca179c5ec93c30b61afb154f15b0ba6a48c344856ce55a2c",
+              "source_pages": 256,
+              "edition": "AKM7169ENG traduction française V10"
+            },
+            {
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V11",
+              "source_revision": "translation-pdf-aea74876200883c9afe2fd21",
+              "source_sha256": "aea74876200883c9afe2fd213e70ce3f3fa0734ca71f5144aba1ed71e0f0ccbc",
+              "source_pages": 53,
+              "edition": "AKM7169ENG traduction française V11"
+            },
+            {
+              "document_id": "AKM7169ENG_FR_TRANSLATION_V12",
+              "source_revision": "translation-pdf-6e47cad8e43a09d5632b50c6",
+              "source_sha256": "6e47cad8e43a09d5632b50c6e13614b8344bba6748b0a9dea41d379a1ed1a323",
+              "source_pages": 58,
+              "edition": "AKM7169ENG traduction française V12"
             }
           ],
-          "planned_documents": [
-            {
-              "document_id": "rover-rcl0193",
-              "edition": "RCL0193FRE",
-              "source_pages": 371,
-              "source_status": "local_sqlite_reviewed_pending_pack_installation_and_distribution_rights",
-              "source_pdf_sha256": "0c7fef28d0d0f0673ba321d6625a019c005823103caa98afb3258114e1fec713"
-            },
-            {
-              "document_id": "rover-akm7169-spi",
-              "edition": "AKM7169FRE",
-              "available_source_pages": 20,
-              "source_status": "spi_20_original_french_pages_reviewed_and_merged_into_private_FR_SQLite",
-              "numbered_steps": 267,
-              "technical_values": 22,
-              "description_sections": 19,
-              "page_images": 20,
-              "documentary_entries": 429
-            }
-          ],
-          "prepublication_candidate_sha256": "b314a275fec750fb4a073b2fa3a1d14e09b03e63f993226908da8041accefb19",
-          "prepublication_pages": 391,
-          "prepublication_entries": 6387,
-          "prepublication_images": 345,
-          "prepublication_version": "fr-2026.11.13-RCL0193FRE-AKM7169FRE-SPI",
-          "prepublication_encrypted_asset": "MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
-          "prepublication_encrypted_sha256": "1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04",
-          "prepublication_encrypted_size": 28098898,
-          "prepublication_secret_source": "GitHub Actions secret MEMS_DOCUMENTARY_PUBLISH_PASSWORD (MAJ)",
-          "prepublication_encryption_verification": "AES-256-GCM authenticated roundtrip and tamper tests succeeded"
+          "notes": "SESSION 161 installe le nouveau pack indépendamment des 6 documents déjà installés."
         }
       ],
-      "notes": "SESSION 161 installe le nouveau pack indépendamment des 6 documents déjà installés."
+      "notes": "SESSION 161 installe le nouveau pack indépendamment des 6 documents déjà installés.",
+      "planned_documents": [
+        {
+          "document_id": "rover-rcl0193",
+          "edition": "RCL0193FRE",
+          "source_pages": 371,
+          "source_status": "local_sqlite_reviewed_pending_pack_installation_and_distribution_rights",
+          "source_pdf_sha256": "0c7fef28d0d0f0673ba321d6625a019c005823103caa98afb3258114e1fec713"
+        },
+        {
+          "document_id": "rover-akm7169-spi",
+          "edition": "AKM7169FRE",
+          "available_source_pages": 20,
+          "source_status": "spi_20_original_french_pages_reviewed_and_merged_into_private_FR_SQLite",
+          "numbered_steps": 267,
+          "technical_values": 22,
+          "description_sections": 19,
+          "page_images": 20,
+          "documentary_entries": 429
+        }
+      ],
+      "prepublication_candidate_sha256": "b314a275fec750fb4a073b2fa3a1d14e09b03e63f993226908da8041accefb19",
+      "prepublication_pages": 391,
+      "prepublication_entries": 6387,
+      "prepublication_images": 345,
+      "prepublication_version": "fr-2026.11.13-RCL0193FRE-AKM7169FRE-SPI",
+      "prepublication_encrypted_asset": "MEMS-DOC-FR-RCL0193FRE-AKM7169FRE-SPI-20261113-MAJ.encrypted",
+      "prepublication_encrypted_sha256": "1686e3f7a8432751695d000897ad6b2412293444444ae983e44d84b083aeda04",
+      "prepublication_encrypted_size": 28098898,
+      "prepublication_secret_source": "GitHub Actions secret MEMS_DOCUMENTARY_PUBLISH_PASSWORD (MAJ)",
+      "prepublication_encryption_verification": "AES-256-GCM authenticated roundtrip and tamper tests succeeded"
     },
     "en": {
       "language": "en",
