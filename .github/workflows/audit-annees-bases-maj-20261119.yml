@@ -244,6 +244,7 @@ jobs:
           set -euo pipefail
           tag='mems-doc-fr-6-years-20261119'
           asset='release-candidate/MEMS-DOC-FR-RAVE6-ANNEES-20261119.encrypted'
+          gh auth setup-git
           git pull --ff-only origin main
           if ! cmp -s manifest.json <(git show HEAD:manifest.json); then
             echo 'MANIFEST_CHANGED_IN_WORKTREE'; exit 1
