@@ -117,7 +117,7 @@ def report_source(db):
         "vin_references":{k:sorted(set(v)) for k,v in sorted(vin_refs.items())},
         "ecu_part_references":{k:sorted(set(v)) for k,v in sorted(part_refs.items())},
         "mems_version_mentions":dict(ecu_versions),
-        "pages":dict(sorted(stats.items())),
+        "page_statistics":dict(sorted(stats.items())),
         "evidence":entry_evidence,
         "related_titles":source_titles,
         "edition_year_not_model_year":"1993 is the original edition identity only"
@@ -192,7 +192,7 @@ def main():
     print("AKM7169FRE_ECU_PART_REFERENCES",json.dumps(results["ecu_part_references"],ensure_ascii=False))
     print("AKM7169FRE_EXACT_ECU_FITMENT_MATCHES",fits["ecu_parts_exactly_matched"])
     print("AKM7169FRE_PAGES_WITH_YEAR_EVIDENCE",
-        [p for p,s in results["pages"].items() if s["explicit_years"] or s["year_mention"]])
+        [p for p,s in results["page_statistics"].items() if s["explicit_years"] or s["year_mention"]])
     print("ORIGINAL_FRENCH_PACK_UNCHANGED_NO_ENGLISH_NO_SETUP_NO_RELEASE")
 
 if __name__=="__main__":
