@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           set +x
           python3 - <<'PY'
-          import hashlib, io, json, os, sqlite3, tempfile, zipfile
+          import copy, hashlib, io, json, os, sqlite3, tempfile, zipfile
           from pathlib import Path
           from audit_published_model_years import decrypt_pack
           from stage_verified_documentary_years import stage
@@ -202,7 +202,7 @@ jobs:
                   with zipfile.ZipFile(output,"w") as rebuilt:
                       for member in archive.infolist():
                           data=staged.read_bytes() if member.filename==source_name else archive.read(member)
-                          rebuilt.writestr(member,data)
+                          rebuilt.writestr(copy.copy(member),data)
                   rebuilt_bytes=output.getvalue()
               with zipfile.ZipFile(io.BytesIO(rebuilt_bytes)) as rebuilt:
                   assert rebuilt.namelist()==archive.namelist() and rebuilt.testzip() is None
