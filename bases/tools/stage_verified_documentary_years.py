@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-PERIOD = re.compile(r"(?:[0-9]{2}-[0-9]{2}|[0-9]{2}\+)\Z")
+PERIOD = re.compile(r"(?:[0-9]{2}-[0-9]{2}|[0-9]{2}\+|pré [0-9]{2}|post [0-9]{2})\Z", re.I)
 REQUIRED = {"documentary_database", "documentary_documents",
             "documentary_entries", "documentary_pages", "documentary_fts"}
 ADDITIVE = "documentary_model_years"
