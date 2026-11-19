@@ -5,7 +5,10 @@ on:
     paths:
       - '.github/workflows/audit-annees-bases-maj-20261119.yml'
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: official-documentary-maj-manifest
+  cancel-in-progress: false
 jobs:
   audit-real-sqlite:
     name: Contrôler les années dans les SQLite chiffrées FR et EN en lecture seule
@@ -141,3 +144,122 @@ jobs:
             audit-liaisons-annees-maj-20261119.json
           if-no-files-found: error
           retention-days: 7
+
+      - name: Construire le pack français avec les années validées, sans modifier les originaux
+        shell: bash
+        env:
+          PYTHONPATH: bases/tools
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 - <<'PY'
+          import hashlib, io, json, os, sqlite3, tempfile, zipfile
+          from pathlib import Path
+          from audit_published_model_years import decrypt_pack
+          from stage_verified_documentary_years import stage
+          from stage_akm7169fre_model_years import add_akm7169fre_period
+          from rekey_documentary_installation import encrypt
+          from verify_licensed_release_and_enable import validate_encrypted
+
+          root=Path(".")
+          manifest=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          fr=manifest["documentary_bases"]["fr"]
+          assert fr["document_count"]==12, "UNEXPECTED_ACTIVE_FRENCH_PACK"
+          old=fr["previous_packs"][0]
+          assert old["document_count"]==6, "EXPECTED_RAVE6_SNAPSHOT_MISSING"
+          original=Path("packs")/old["release_url"].rsplit("/",1)[-1]
+          original_hash=hashlib.sha256(original.read_bytes()).hexdigest()
+          assert original_hash==old["sha256"], "PUBLISHED_ORIGINAL_SHA_MISMATCH"
+          password=os.environ["MEMS_DOCUMENTARY_PUBLISH_PASSWORD"]
+          clear=decrypt_pack(original,old["sha256"],password)
+          source_name="mems_documentary_fr.sqlite"
+          tag="mems-doc-fr-6-years-20261119"
+          asset_name="MEMS-DOC-FR-RAVE6-ANNEES-20261119.encrypted"
+          Path("release-candidate").mkdir(exist_ok=True)
+          with zipfile.ZipFile(io.BytesIO(clear)) as archive, tempfile.TemporaryDirectory() as folder:
+              assert archive.testzip() is None and source_name in archive.namelist()
+              source=Path(folder)/"source.sqlite"
+              source.write_bytes(archive.read(source_name))
+              source_hash=hashlib.sha256(source.read_bytes()).hexdigest()
+              staged=Path(folder)/"staged.sqlite"
+              verified=stage(source,Path("audit-liaisons-annees-maj-20261119.json"),staged)
+              assert verified=={"RCL0193FRE":5694}, "RCL_5694_VERIFIED_ROWS_NOT_PRESENT"
+              count=add_akm7169fre_period(
+                  source,staged,Path("bases/fr/AKM7169FRE-periode-constructeur-20261119.json"))
+              assert count==429, "AKM_429_VERIFIED_ROWS_NOT_PRESENT"
+              with sqlite3.connect("file:"+str(staged)+"?mode=ro",uri=True) as database:
+                  assert database.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
+                  assert database.execute("PRAGMA foreign_key_check").fetchall()==[]
+                  groups=dict(database.execute(
+                      "SELECT document_id,vehicle_years,COUNT(*) FROM documentary_model_years "
+                      "GROUP BY document_id,vehicle_years"))
+                  assert groups=={("RCL0193FRE","96+"):5694,("AKM7169FRE","92+"):429},groups
+                  assert database.execute("SELECT COUNT(*) FROM documentary_model_years").fetchone()[0]==6123
+              assert hashlib.sha256(source.read_bytes()).hexdigest()==source_hash
+              assert len(archive.namelist())==len(set(archive.namelist()))
+              with io.BytesIO() as output:
+                  with zipfile.ZipFile(output,"w") as rebuilt:
+                      for member in archive.infolist():
+                          data=staged.read_bytes() if member.filename==source_name else archive.read(member)
+                          rebuilt.writestr(member,data)
+                  rebuilt_bytes=output.getvalue()
+              with zipfile.ZipFile(io.BytesIO(rebuilt_bytes)) as rebuilt:
+                  assert rebuilt.namelist()==archive.namelist() and rebuilt.testzip() is None
+                  assert all(rebuilt.read(name)==archive.read(name) for name in archive.namelist()
+                             if name!=source_name), "IMAGE_OR_MANUAL_CONTENT_CHANGED"
+          assert hashlib.sha256(original.read_bytes()).hexdigest()==original_hash
+          out=Path("release-candidate")/asset_name
+          out.write_bytes(encrypt(rebuilt_bytes,password))
+          new_sha,docs=validate_encrypted(out,"fr",password)
+          assert docs==old["published_documents"], "DOCUMENT_INVENTORY_CHANGED"
+          fr_previous=[{key:value for key,value in fr.items() if key!="previous_packs"}]
+          fr_previous.extend(fr["previous_packs"][1:])
+          candidate=json.loads(json.dumps(manifest))
+          current=candidate["documentary_bases"]["fr"]
+          current.update({key:value for key,value in old.items() if key!="previous_packs"})
+          current.update({
+              "description":"Français : RAVE 6 documents, années constructeur vérifiées",
+              "version":"fr-rave6-years-20261119",
+              "release_url":
+                  "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/"
+                  +tag+"/"+asset_name,
+              "sha256":new_sha,
+              "previous_packs":fr_previous
+          })
+          assert current["document_count"]==6 and current["published_documents"]==docs
+          assert current["previous_packs"][0]["document_count"]==12
+          assert candidate["documentary_bases"]["en"]==manifest["documentary_bases"]["en"]
+          Path("release-candidate/manifest.json").write_text(
+              json.dumps(candidate,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          print("PACK_FR_6_DOCUMENTS_797_PAGES_IMAGES_UNCHANGED")
+          print("RCL0193FRE_5694_96_PLUS_AND_AKM7169FRE_429_92_PLUS_VERIFIED")
+          print("ORIGINAL_ENCRYPTED_PACK_UNCHANGED_AND_CANDIDATE_SHA256="+new_sha)
+          PY
+      - name: Publier uniquement le pack enrichi et activer son offre MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag='mems-doc-fr-6-years-20261119'
+          asset='release-candidate/MEMS-DOC-FR-RAVE6-ANNEES-20261119.encrypted'
+          git pull --ff-only origin main
+          if ! cmp -s manifest.json <(git show HEAD:manifest.json); then
+            echo 'MANIFEST_CHANGED_IN_WORKTREE'; exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'VERSION_ALREADY_EXISTS_REFUSING_OVERWRITE'; exit 1
+          fi
+          gh release create "$tag" "$asset" --repo "$GITHUB_REPOSITORY" \
+            --draft --title "Base documentaire FR - années véhicules vérifiées" \
+            --notes "RCL0193FRE : 5694 périodes 96+. AKM7169FRE original : 429 périodes 92+. Tous les autres documents, textes et images conservés."
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false
+          test "$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets|length')" = 1
+          cp release-candidate/manifest.json manifest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          git commit -m "MAJ FR : publier les 6123 années vérifiées RCL et AKM, conserver AKM12"
+          git push origin HEAD:main
+          echo 'FRENCH_YEARS_PACK_PUBLISHED_AND_MANIFEST_ACTIVE'
