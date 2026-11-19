@@ -46,7 +46,10 @@ def stage(source, report_file, output):
     for entry in verified:
         if not PERIOD.fullmatch(str(entry.get("model_years", ""))):
             raise ValueError("MALFORMED_YEAR_VALUE")
-        if "SCOPE-RCL0193FRE-MINI-VIN134455" not in entry.get("scope_keys", []):
+        allowed_scopes = {"SCOPE-RCL0193FRE-MINI-VIN134455",
+                          "SCOPE-RCL0193FRE-MPI-VIN134455"}
+        if (len(entry.get("scope_keys", [])) != 1 or
+                entry["scope_keys"][0] not in allowed_scopes):
             raise ValueError("UNVERIFIED_SOURCE_SCOPE")
 
     with sqlite3.connect("file:" + str(source.resolve()) + "?mode=ro", uri=True) as original:
@@ -98,7 +101,7 @@ def stage(source, report_file, output):
                     q.execute(
                         "INSERT INTO documentary_model_years VALUES (?,?,?,?,?,?,?)",
                         (*key,row["model_years"],row["basis"],"134455",
-                         "SCOPE-RCL0193FRE-MINI-VIN134455"))
+                         row["scope_keys"][0]))
                     added[row["document_id"]] += 1
                 staging.commit()
                 integrity(staging)
