@@ -16,8 +16,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Charger la référence constructeur ECU existante sans la modifier
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-documentary-additive-session-161-20261118
+          path: session-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /database/reference/
+            /tools/build_rave_fr_documentary.py
+            /tools/documentary_common.py
       - name: Installer le lecteur cryptographique AES-GCM
-        run: python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+        run: |
+          python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+          python3 -m py_compile bases/tools/audit_verified_year_links.py
       - name: Télécharger exactement les trois packs publiés
         shell: bash
         env:
@@ -53,10 +67,21 @@ jobs:
           python3 bases/tools/audit_published_model_years.py \
             --manifest manifest.json --directory packs \
             --output audit-annees-maj-20261119.json
-      - name: Conserver seulement le rapport des métadonnées, jamais les bases
+      - name: Relier en lecture seule VIN, périodes ECU et procédures exactes
+        shell: bash
+        env:
+          PYTHONPATH: session-source/tools:bases/tools
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 bases/tools/audit_verified_year_links.py             --manifest manifest.json --directory packs             --source-reference session-source/database/reference             --output audit-liaisons-annees-maj-20261119.json
+      - name: Conserver uniquement les preuves de dates, jamais les bases
         uses: actions/upload-artifact@v4
         with:
-          name: audit-annees-maj-3-packs-20261119
-          path: audit-annees-maj-20261119.json
+          name: audit-annees-et-liaisons-maj-20261119
+          path: |
+            audit-annees-maj-20261119.json
+            audit-liaisons-annees-maj-20261119.json
           if-no-files-found: error
           retention-days: 7
