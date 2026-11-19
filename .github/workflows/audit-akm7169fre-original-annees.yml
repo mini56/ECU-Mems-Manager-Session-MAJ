@@ -1,0 +1,79 @@
+name: AUDIT AKM7169FRE original - annees sans Setup
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-akm7169fre-original-annees.yml'
+permissions:
+  contents: read
+jobs:
+  akm7169fre-original:
+    name: AKM7169FRE 20 pages FR original - lecture seule
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Lire le catalogue MAJ existant
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Lire les références ECU sans les modifier
+        uses: actions/checkout@v4
+        with:
+          repository: mini56/ECU-Mems-Manager-Session
+          ref: fix-documentary-additive-session-161-20261118
+          path: session-source
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /database/reference/
+            /tools/build_rave_fr_documentary.py
+            /tools/documentary_common.py
+      - name: Installer uniquement le lecteur du pack français
+        run: |
+          python3 -m pip install --disable-pip-version-check 'cryptography>=42,<47'
+          python3 -m py_compile bases/tools/audit_akm7169fre_years.py
+      - name: Télécharger uniquement la base RAVE française contenant AKM7169FRE original
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p packs
+          tag="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+          manifest=json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          doc=manifest['documentary_bases']['fr']['previous_packs'][0]
+          assert any(x['document_id']=='AKM7169FRE' for x in doc['published_documents'])
+          print(urlparse(doc['release_url']).path.split('/')[-2])
+          PY
+          )"
+          asset="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+          doc=json.loads(Path('manifest.json').read_text(encoding='utf-8'))['documentary_bases']['fr']['previous_packs'][0]
+          print(urlparse(doc['release_url']).path.split('/')[-1])
+          PY
+          )"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir packs
+      - name: Authentifier le pack et contrôler uniquement AKM7169FRE original
+        shell: bash
+        env:
+          PYTHONPATH: session-source/tools:bases/tools
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 bases/tools/audit_akm7169fre_years.py \
+            --manifest manifest.json --pack-directory packs \
+            --reference-root session-source/database/reference \
+            --output audit-akm7169fre-original-annees.json
+      - name: Sauvegarder seulement le rapport ciblé sans PDF ni SQLite
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-akm7169fre-original-annees
+          path: audit-akm7169fre-original-annees.json
+          if-no-files-found: error
+          retention-days: 7
