@@ -70,6 +70,75 @@ jobs:
             --manifest manifest.json --pack-directory packs \
             --reference-root session-source/database/reference \
             --output audit-akm7169fre-original-annees.json
+      - name: Contrôler 429 périodes dans une copie temporaire sans toucher au pack
+        shell: bash
+        env:
+          PYTHONPATH: bases/tools
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 -m py_compile bases/tools/stage_akm7169fre_model_years.py
+          python3 - <<'PY'
+          import hashlib, io, json, os, sqlite3, tempfile, zipfile
+          from pathlib import Path
+          from audit_published_model_years import decrypt_pack
+          from stage_akm7169fre_model_years import add_akm7169fre_period
+          from stage_verified_documentary_years import PERIOD
+          assert all(PERIOD.fullmatch(x) for x in ("92+", "pré 92", "post 96", "92-96"))
+          assert not PERIOD.fullmatch("93 édition")
+          m=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          desc=m["documentary_bases"]["fr"]["previous_packs"][0]
+          pack=Path("packs")/desc["release_url"].rsplit("/",1)[-1]
+          before=hashlib.sha256(pack.read_bytes()).hexdigest()
+          assert before==desc["sha256"],"AUTHENTICATED_PACK_CHANGED"
+          clear=decrypt_pack(pack,before,os.environ["MEMS_DOCUMENTARY_PUBLISH_PASSWORD"])
+          with zipfile.ZipFile(io.BytesIO(clear)) as z, tempfile.TemporaryDirectory(prefix="akm7169-audit-") as folder:
+              src=Path(folder)/"source.sqlite"
+              staged=Path(folder)/"staged.sqlite"
+              src.write_bytes(z.read("mems_documentary_fr.sqlite"))
+              original_hash=hashlib.sha256(src.read_bytes()).hexdigest()
+              with sqlite3.connect("file:"+str(src)+"?mode=ro",uri=True) as original:
+                  with sqlite3.connect(staged) as clone:
+                      original.backup(clone)
+                      clone.execute("PRAGMA foreign_keys=ON")
+                      clone.executescript("""
+                          CREATE TABLE documentary_model_years(
+                            document_id TEXT NOT NULL,
+                            source_revision TEXT NOT NULL,
+                            entry_id TEXT NOT NULL,
+                            vehicle_years TEXT NOT NULL,
+                            evidence_basis TEXT NOT NULL,
+                            vin_from TEXT NOT NULL,
+                            scope_key TEXT NOT NULL,
+                            PRIMARY KEY(document_id,source_revision,entry_id),
+                            FOREIGN KEY(document_id,source_revision,entry_id)
+                              REFERENCES documentary_entries(
+                                document_id,source_revision,entry_id)
+                          );
+                      """)
+              count=add_akm7169fre_period(
+                  src,staged,Path("bases/fr/AKM7169FRE-periode-constructeur-20261119.json"))
+              assert count==429
+              assert hashlib.sha256(src.read_bytes()).hexdigest()==original_hash
+              with sqlite3.connect("file:"+str(staged)+"?mode=ro",uri=True) as db:
+                  assert db.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
+                  assert db.execute("PRAGMA foreign_key_check").fetchall()==[]
+                  rows=db.execute(
+                      "SELECT vehicle_years,COUNT(*) FROM documentary_model_years "
+                      "GROUP BY vehicle_years").fetchall()
+                  assert rows==[("92+",429)],rows
+                  assert db.execute(
+                      "SELECT COUNT(*) FROM documentary_entries "
+                      "WHERE document_id='AKM7169FRE'").fetchone()[0]==429
+                  assert db.execute(
+                      "SELECT COUNT(*) FROM documentary_model_years "
+                      "WHERE document_id!='AKM7169FRE'").fetchone()[0]==0
+          assert hashlib.sha256(pack.read_bytes()).hexdigest()==before
+          print("AKM7169FRE_STAGING_VALIDATED_429_ENTRIES_92_PLUS")
+          print("YEAR_FORMATS_PRE_POST_RANGE_AND_INCLUSIVE_START_VALIDATED")
+          print("NO_SOURCE_CHANGED_NO_ENGLISH_NO_PACK_NO_RELEASE_NO_SETUP")
+          PY
       - name: Sauvegarder seulement le rapport ciblé sans PDF ni SQLite
         uses: actions/upload-artifact@v4
         with:
