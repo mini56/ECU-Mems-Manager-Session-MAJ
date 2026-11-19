@@ -18,10 +18,6 @@ La branche de développement [`rave-fr-source-sqlite-20261112`](https://github.c
 
 [Voir le résultat de la relecture, la provenance, les comptes et les contrôles](AKM7169FRE-SPI-PRIORITE.md). Le manuscrit original de 20 pages est intégralement conservé avec les pages et les illustrations ; les 267 étapes de réparation ont été structurées. Aucun statut `review_required` ne reste dans la nouvelle SQLite privée.
 
-## Avant une publication publique
-
-Le dépôt MAJ est **public**. Les manuels, leurs illustrations et des transcriptions restent soumis aux droits de leur éditeur. Ne pas mettre les fichiers Rover sur une Release publique sans autorisation de redistribution confirmée, même chiffrés.
-
 Le manifeste deviendra `available: true` seulement après publication d'un pack autorisé et après validation de son intégrité, de sa langue, de son chiffrement, de sa provenance et de son installation par le programme. Les données ECU, personnelles et expertes restent totalement indépendantes.
 
 ## Paquet chiffré prêt pour la distribution autorisée
