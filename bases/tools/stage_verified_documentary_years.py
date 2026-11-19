@@ -104,8 +104,7 @@ def stage(source, report_file, output):
                 integrity(staging)
                 if sum(added.values()) != len(verified):
                     raise ValueError("INCOMPLETE_APPLICABILITY_STAGING")
-                if table_names(staging) - table_names(original) != {
-                        ADDITIVE, "idx_documentary_years_period"} - {"idx_documentary_years_period"}:
+                if table_names(staging) - table_names(original) != {ADDITIVE}:
                     raise ValueError("UNEXPECTED_ADDITIVE_SCHEMA")
                 for table in REQUIRED - {"documentary_fts"}:
                     source_count=original.execute(
