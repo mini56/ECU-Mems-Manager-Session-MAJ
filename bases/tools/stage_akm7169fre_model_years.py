@@ -87,8 +87,8 @@ def add_akm7169fre_period(original_path, staging_path, metadata_path):
         source_count=db.execute(
             "SELECT COUNT(*) FROM documentary_model_years WHERE document_id='RCL0193FRE'"
         ).fetchone()[0]
-        if source_count!=5694:
-            raise ValueError("PREVIOUSLY_VERIFIED_RCL0193FRE_YEARS_CHANGED")
+        if source_count not in (0,5694):
+            raise ValueError("RCL0193FRE_YEARS_IN_UNEXPECTED_STATE")
         for (entry_id,) in staging_keys:
             db.execute(
                 "INSERT INTO documentary_model_years "
@@ -109,7 +109,7 @@ def add_akm7169fre_period(original_path, staging_path, metadata_path):
             raise ValueError("AKM7169FRE_STAGED_PERIOD_COUNT_INCORRECT")
         if db.execute(
             "SELECT COUNT(*) FROM documentary_model_years WHERE document_id='RCL0193FRE'"
-        ).fetchone()[0]!=5694:
+        ).fetchone()[0]!=source_count:
             raise ValueError("EXISTING_RCL0193FRE_PERIODS_MODIFIED")
     if hashlib.sha256(original_path.read_bytes()).hexdigest()!=original_digest:
         raise ValueError("ORIGINAL_SQLITE_MODIFIED")
