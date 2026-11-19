@@ -8,7 +8,7 @@ permissions:
   contents: write
 concurrency:
   group: official-documentary-maj-manifest
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   audit-real-sqlite:
     name: Contrôler les années dans les SQLite chiffrées FR et EN en lecture seule
@@ -191,9 +191,9 @@ jobs:
               with sqlite3.connect("file:"+str(staged)+"?mode=ro",uri=True) as database:
                   assert database.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
                   assert database.execute("PRAGMA foreign_key_check").fetchall()==[]
-                  groups=dict(database.execute(
+                  groups={(doc,period):n for doc,period,n in database.execute(
                       "SELECT document_id,vehicle_years,COUNT(*) FROM documentary_model_years "
-                      "GROUP BY document_id,vehicle_years"))
+                      "GROUP BY document_id,vehicle_years")}
                   assert groups=={("RCL0193FRE","96+"):5694,("AKM7169FRE","92+"):429},groups
                   assert database.execute("SELECT COUNT(*) FROM documentary_model_years").fetchone()[0]==6123
               assert hashlib.sha256(source.read_bytes()).hexdigest()==source_hash
