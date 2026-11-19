@@ -2,6 +2,10 @@ name: Publier Setup SESSION 175 depuis le depot prive
 run-name: SESSION 175 - Transfert Setup vers MAJ
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-175-from-private.yml'
 permissions:
   contents: write
 concurrency:
