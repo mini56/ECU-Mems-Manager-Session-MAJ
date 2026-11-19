@@ -73,7 +73,8 @@ def stage(source, report_file, output):
                       entry_id TEXT NOT NULL,
                       vehicle_years TEXT NOT NULL,
                       evidence_basis TEXT NOT NULL
-                        CHECK(evidence_basis='exact_ecu_fitment_vin'),
+                        CHECK(evidence_basis IN (
+                          'exact_ecu_fitment_vin','manufacturer_manual_vin_start')),
                       vin_from TEXT NOT NULL,
                       scope_key TEXT NOT NULL,
                       PRIMARY KEY(document_id,source_revision,entry_id),
