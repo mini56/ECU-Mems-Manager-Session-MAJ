@@ -76,6 +76,56 @@ jobs:
           set -euo pipefail
           set +x
           python3 bases/tools/audit_verified_year_links.py             --manifest manifest.json --directory packs             --source-reference session-source/database/reference             --output audit-liaisons-annees-maj-20261119.json
+      - name: Prouver l'intégration sans altérer le vrai SQLite
+        shell: bash
+        env:
+          PYTHONPATH: bases/tools
+          MEMS_DOCUMENTARY_PUBLISH_PASSWORD: ${{ secrets.MEMS_DOCUMENTARY_PUBLISH_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 -m py_compile bases/tools/stage_verified_documentary_years.py
+          python3 - <<'PY'
+          import hashlib,io,json,os,sqlite3,tempfile,zipfile
+          from pathlib import Path
+          from audit_published_model_years import decrypt_pack
+          from stage_verified_documentary_years import stage
+          manifest=json.loads(Path("manifest.json").read_text(encoding="utf-8"))
+          previous=manifest["documentary_bases"]["fr"]["previous_packs"][0]
+          original=Path("packs")/previous["release_url"].rsplit("/",1)[-1]
+          h=hashlib.sha256(original.read_bytes()).hexdigest()
+          assert h==previous["sha256"], "ORIGINAL_PUBLISHED_PACK_CHANGED"
+          clear=decrypt_pack(original,h,os.environ["MEMS_DOCUMENTARY_PUBLISH_PASSWORD"])
+          with zipfile.ZipFile(io.BytesIO(clear)) as z, tempfile.TemporaryDirectory() as tmp:
+              src=Path(tmp)/"original.sqlite"
+              src.write_bytes(z.read("mems_documentary_fr.sqlite"))
+              original_sha=hashlib.sha256(src.read_bytes()).hexdigest()
+              output=Path(tmp)/"staged.sqlite"
+              counts=stage(src,Path("audit-liaisons-annees-maj-20261119.json"),output)
+              assert counts=={"RCL0193FRE":5694}, "VERIFIED_ROW_COUNT_CHANGED"
+              assert hashlib.sha256(src.read_bytes()).hexdigest()==original_sha,"SOURCE_SQLITE_MUTATED"
+              with sqlite3.connect("file:"+str(output)+"?mode=ro",uri=True) as db:
+                  count=db.execute("SELECT COUNT(*) FROM documentary_model_years").fetchone()[0]
+                  assert count==5694, "INCOMPLETE_STAGE"
+                  assert db.execute(
+                      "SELECT COUNT(*) FROM documentary_model_years y "
+                      "JOIN documentary_entries e USING(document_id,source_revision,entry_id) "
+                      "WHERE e.document_id='RCL0193FRE' AND e.source_page=244").fetchone()[0]==12
+                  assert db.execute(
+                      "SELECT COUNT(*) FROM documentary_model_years y "
+                      "JOIN documentary_entries e USING(document_id,source_revision,entry_id) "
+                      "WHERE e.document_id='RCL0193FRE' AND e.source_page=251").fetchone()[0]==35
+                  assert db.execute(
+                      "SELECT COUNT(DISTINCT vehicle_years) FROM documentary_model_years"
+                  ).fetchone()[0]==1
+                  assert db.execute("SELECT DISTINCT vehicle_years FROM documentary_model_years").fetchone()[0]=="96+"
+                  assert db.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
+                  assert db.execute("PRAGMA foreign_key_check").fetchall()==[]
+          assert hashlib.sha256(original.read_bytes()).hexdigest()==h,"PUBLISHED_PACK_MUTATED"
+          print("PASS_REAL_FR_RAVE_5694_VERIFIED_PERIODS_96_PLUS_PAGE244_12_PAGE251_35")
+          print("PASS_ORIGINAL_SQLITE_UNCHANGED_STAGING_DESTROYED_AFTER_TEST")
+          PY
+
       - name: Conserver uniquement les preuves de dates, jamais les bases
         uses: actions/upload-artifact@v4
         with:
