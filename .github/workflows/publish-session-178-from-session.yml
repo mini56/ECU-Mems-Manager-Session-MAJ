@@ -1,0 +1,120 @@
+name: Publier Setup SESSION 178 depuis la Release SESSION
+run-name: SESSION 178 - Transfert Setup vers MAJ
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-178-from-session.yml'
+permissions:
+  contents: write
+concurrency:
+  group: transfer-session-178-maj
+  cancel-in-progress: false
+jobs:
+  transfer-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recuperer les deux fichiers verifies de la Release SESSION 178
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOURCE_TOKEN}" ]]; then
+            echo "::error::SESSION_RELEASE_READ_TOKEN non configure dans le depot MAJ."
+            exit 1
+          fi
+          mkdir -p transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release download mems-session-build-178 \
+            --repo mini56/ECU-Mems-Manager-Session \
+            --pattern 'ECU-Mems-Manager-Session-178-Setup.exe' \
+            --pattern 'SESSION-178-Setup.sha256' \
+            --dir transfer
+          cd transfer
+          sha256sum --check --status SESSION-178-Setup.sha256
+          test "$(stat -c '%s' ECU-Mems-Manager-Session-178-Setup.exe)" -eq 449404915
+          test "$(head -c 2 ECU-Mems-Manager-Session-178-Setup.exe)" = MZ
+          echo 'SESSION_178_SOURCE_SHA256_AND_SIZE_VERIFIED'
+      - name: Publier uniquement Setup et SHA-256 sur MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=mems-session-build-178
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo "::error::La Release 178 existe deja sur MAJ : publication annulee pour eviter tout ecrasement."
+            exit 1
+          fi
+          cat > release-notes.txt <<'NOTES'
+          ### Français
+
+          **ECU MEMS Manager SESSION 178 — Lecture automatique MEMS 2J**
+
+          - Brancher le câble compatible et le calculateur, puis cliquer sur **CONNECTER** : aucune sélection manuelle du câble ou du protocole.
+          - Dialogue K-Line 10400 bauds avec Fast Init, authentification de session MEMS 2J et lecture des commandes 21 XX.
+          - Mesures du MEMS 2J dans les pages habituelles, lecture des défauts 21 19 et traitement des échos du câble.
+          - Identification du protocole par les réponses du calculateur, sans restriction de marque ou d'identifiant USB.
+          - Conversions documentées ; mesures et défauts non entièrement recoupés laissés identifiés comme tels (défauts Mini MPi).
+          - Les calculateurs ROSCO 1.2 / 1.3 / 1.6 et le MEMS 1.9 conservent leurs lecteurs précédents.
+          - Setup Windows 64 bits testé en compilation, installation, lancement et contrôle des 15 pages. **Validation sur un calculateur MEMS 2J réel encore nécessaire.**
+          - Le Setup et son empreinte SHA-256 sont fournis séparément, sans base documentaire constructeur.
+
+          ---
+
+          ### English
+
+          **ECU MEMS Manager SESSION 178 — Automatic MEMS 2J reading**
+
+          - Connect a compatible cable and ECU, then click **CONNECT**. No manual USB brand, port protocol or ECU family selection.
+          - 10400-baud K-Line fast initialization, MEMS 2J diagnostic session and seed/key authentication.
+          - Reads MEMS 2J values with 21 XX requests, 61 XX responses and 21 19 faults, with adapter echo handling.
+          - Live readings and faults appear on the regular Manager pages. Uncertain fields remain explicitly marked as raw.
+          - Existing ROSCO 1.2/1.3/1.6 and MEMS 1.9 readers are retained.
+          - The Windows 64-bit installer passed automated build, installation and 15-page UI tests. **A physical MEMS 2J ECU test is still required.**
+          - Only the Setup and SHA-256 checksum are provided, without manufacturer document databases.
+          NOTES
+          gh release create "$tag" \
+            transfer/ECU-Mems-Manager-Session-178-Setup.exe \
+            transfer/SESSION-178-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 178 - Setup Windows' \
+            --notes-file release-notes.txt \
+            --latest
+          test "$(gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" -eq 2
+          echo 'SESSION_178_PUBLIC_SETUP_RELEASE_VERIFIED'
+      - name: Actualiser uniquement la rubrique programme du manifeste MAJ
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          exe=Path('transfer/ECU-Mems-Manager-Session-178-Setup.exe')
+          sha=hashlib.file_digest(exe.open('rb'),'sha256').hexdigest()
+          path=Path('manifest.json')
+          manifest=json.loads(path.read_text(encoding='utf-8'))
+          program=manifest.setdefault('program',{})
+          program.update({
+            'available':True,
+            'version':'1.1.78',
+            'release_url':'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-178/ECU-Mems-Manager-Session-178-Setup.exe',
+            'sha256':sha,
+          })
+          path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SESSION_178_PROGRAM_MANIFEST_READY',sha)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publication programme SESSION 178 sur MAJ'
+            git push origin HEAD:main
+          fi
+          echo 'SESSION_178_PUBLIC_MANIFEST_UPDATED'
