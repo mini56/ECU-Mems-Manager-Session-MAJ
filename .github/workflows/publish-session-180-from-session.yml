@@ -1,0 +1,120 @@
+name: Publier Setup SESSION 180 depuis la Release SESSION
+run-name: SESSION 180 - Transfert Setup vers MAJ
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-180-from-session.yml'
+permissions:
+  contents: write
+concurrency:
+  group: transfer-session-180-maj
+  cancel-in-progress: false
+jobs:
+  transfer-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recuperer les deux fichiers verifies de la Release SESSION 180
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOURCE_TOKEN}" ]]; then
+            echo "::error::SESSION_RELEASE_READ_TOKEN non configure dans le depot MAJ."
+            exit 1
+          fi
+          mkdir -p transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release download mems-session-build-180 \
+            --repo mini56/ECU-Mems-Manager-Session \
+            --pattern 'ECU-Mems-Manager-Session-180-Setup.exe' \
+            --pattern 'SESSION-180-Setup.sha256' \
+            --dir transfer
+          cd transfer
+          sha256sum --check --status SESSION-180-Setup.sha256
+          test "$(stat -c '%s' ECU-Mems-Manager-Session-180-Setup.exe)" -gt 100000000
+          test "$(head -c 2 ECU-Mems-Manager-Session-180-Setup.exe)" = MZ
+          echo 'SESSION_180_SOURCE_SHA256_AND_SIZE_VERIFIED'
+      - name: Publier uniquement Setup et SHA-256 sur MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=mems-session-build-180
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo "::error::La Release 180 existe deja sur MAJ : publication annulee pour eviter tout ecrasement."
+            exit 1
+          fi
+          cat > release-notes.txt <<'NOTES'
+          ### Français
+
+          **ECU MEMS Manager SESSION 180 — Analyse : courbes ou colonnes et lecture CSV corrigée**
+
+          - Dans la page Analyse, bouton en haut de la partie gauche pour basculer entre les courbes existantes et un tableau de valeurs.
+          - Partie droite conservée : mêmes noms des voies, cases à cocher et commandes ; au survol, affichage du nom complet et de l'identifiant.
+          - Le tableau présente l'heure et une colonne par voie sélectionnée, avec défilements horizontal et vertical.
+          - Correction de l'import CSV : en-tête dès la première ligne, séparateurs virgule/point-virgule, guillemets et nombres décimaux français.
+          - Maintien des journaux TXT/CSV déjà compatibles avec le programme.
+          - Aide actualisée pour les six langues : français, anglais, espagnol, italien, portugais et allemand.
+          - Pas de nouvelle page ni de modification des communications ECU, de l'IA ou des bases documentaires.
+          - Setup Windows x64 testé sur CI, avec installation réelle, vérifications de l'Analyse et de l'interface.
+          - Setup officiel et empreinte SHA-256 fournis sans les bases documentaires constructeur.
+
+          ---
+
+          ### English
+
+          **ECU MEMS Manager SESSION 180 — Analysis curves/columns display and CSV import fixes**
+
+          - Switch the left Analysis area between original plots and a scrollable data table.
+          - The existing right-side channel selector stays unchanged; hover reveals complete channel names.
+          - The table shows time and all selected channels, preserving original CSV textual values.
+          - CSV import now recognises first-line headers, commas, semicolons, quoted fields and decimal commas.
+          - Existing TXT logs, ECU interfaces and documentary databases are unchanged.
+          - Updated offline Help in six languages. Windows x64 installer and UI tests included.
+          NOTES
+          gh release create "$tag" \
+            transfer/ECU-Mems-Manager-Session-180-Setup.exe \
+            transfer/SESSION-180-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 180 - Setup Windows' \
+            --notes-file release-notes.txt \
+            --latest
+          test "$(gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" -eq 2
+          echo 'SESSION_180_PUBLIC_SETUP_RELEASE_VERIFIED'
+      - name: Actualiser uniquement la rubrique programme du manifeste MAJ
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          exe=Path('transfer/ECU-Mems-Manager-Session-180-Setup.exe')
+          sha=hashlib.file_digest(exe.open('rb'),'sha256').hexdigest()
+          path=Path('manifest.json')
+          manifest=json.loads(path.read_text(encoding='utf-8'))
+          program=manifest.setdefault('program',{})
+          program.update({
+            'available':True,
+            'version':'1.1.80',
+            'release_url':'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-180/ECU-Mems-Manager-Session-180-Setup.exe',
+            'sha256':sha,
+          })
+          path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SESSION_180_PROGRAM_MANIFEST_READY',sha)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publication programme SESSION 180 sur MAJ'
+            git push origin HEAD:main
+          fi
+          echo 'SESSION_180_PUBLIC_MANIFEST_UPDATED'
