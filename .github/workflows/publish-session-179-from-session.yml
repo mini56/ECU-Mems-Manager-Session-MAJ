@@ -1,0 +1,121 @@
+name: Publier Setup SESSION 179 depuis la Release SESSION
+run-name: SESSION 179 - Transfert Setup vers MAJ
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-179-from-session.yml'
+permissions:
+  contents: write
+concurrency:
+  group: transfer-session-179-maj
+  cancel-in-progress: false
+jobs:
+  transfer-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recuperer les deux fichiers verifies de la Release SESSION 179
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOURCE_TOKEN}" ]]; then
+            echo "::error::SESSION_RELEASE_READ_TOKEN non configure dans le depot MAJ."
+            exit 1
+          fi
+          mkdir -p transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release download mems-session-build-179 \
+            --repo mini56/ECU-Mems-Manager-Session \
+            --pattern 'ECU-Mems-Manager-Session-179-Setup.exe' \
+            --pattern 'SESSION-179-Setup.sha256' \
+            --dir transfer
+          cd transfer
+          sha256sum --check --status SESSION-179-Setup.sha256
+          test "$(stat -c '%s' ECU-Mems-Manager-Session-179-Setup.exe)" -gt 100000000
+          test "$(head -c 2 ECU-Mems-Manager-Session-179-Setup.exe)" = MZ
+          echo 'SESSION_179_SOURCE_SHA256_AND_SIZE_VERIFIED'
+      - name: Publier uniquement Setup et SHA-256 sur MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=mems-session-build-179
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo "::error::La Release 179 existe deja sur MAJ : publication annulee pour eviter tout ecrasement."
+            exit 1
+          fi
+          cat > release-notes.txt <<'NOTES'
+          ### Français
+
+          **ECU MEMS Manager SESSION 179 — Aide MEMS 2J, images agrandissables et notification des mises à jour**
+
+          - Aide MEMS 2J intégrée en français, anglais, espagnol, italien, portugais et allemand.
+          - Captures de l'Aide agrandissables par clic, avec zoom +, −, 100 % et défilement, même sans Internet.
+          - Fenêtre « À propos » actualisée pour MEMS 2J et remerciements conservés.
+          - Vérification automatique discrète des nouvelles versions du programme au démarrage, via HTTPS natif Windows.
+          - Bouton orange de nouvelle version dans le bandeau et contrôle manuel depuis le menu Aide.
+          - Le téléchargement s'ouvre dans le navigateur ; aucune installation forcée.
+          - Bases documentaires, IA, connexion ECU, ROSCO, MEMS 1.9 et 2J préservés.
+          - Setup Windows x64, traduction et interface vérifiés par les tests automatiques ; essai 2J sur ECU réel toujours nécessaire.
+          - Le Setup et son empreinte SHA-256 sont disponibles, sans bases documentaires constructeur.
+
+          ---
+
+          ### English
+
+          **ECU MEMS Manager SESSION 179 — MEMS 2J Help, zoomable screenshots and program-update notifications**
+
+          - Six-language offline Help covers MEMS 2J and pending physical ECU validation.
+          - Click any Help image for a zoomable offline viewer with +, −, 100% and scrollbars.
+          - Updated About dialog and existing contributor credits.
+          - Silent startup version check through native Windows HTTPS, orange update button when newer Setup exists.
+          - Manual check in Help; download opens the official public Windows Setup in a browser.
+          - No automatic installation or modification of existing ECU readers or documentary databases.
+          - Automated Windows x64 installation and UI tests, including screenshot zoom; physical MEMS 2J test remains necessary.
+          NOTES
+          gh release create "$tag" \
+            transfer/ECU-Mems-Manager-Session-179-Setup.exe \
+            transfer/SESSION-179-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 179 - Setup Windows' \
+            --notes-file release-notes.txt \
+            --latest
+          test "$(gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" -eq 2
+          echo 'SESSION_179_PUBLIC_SETUP_RELEASE_VERIFIED'
+      - name: Actualiser uniquement la rubrique programme du manifeste MAJ
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          exe=Path('transfer/ECU-Mems-Manager-Session-179-Setup.exe')
+          sha=hashlib.file_digest(exe.open('rb'),'sha256').hexdigest()
+          path=Path('manifest.json')
+          manifest=json.loads(path.read_text(encoding='utf-8'))
+          program=manifest.setdefault('program',{})
+          program.update({
+            'available':True,
+            'version':'1.1.79',
+            'release_url':'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-179/ECU-Mems-Manager-Session-179-Setup.exe',
+            'sha256':sha,
+          })
+          path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SESSION_179_PROGRAM_MANIFEST_READY',sha)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publication programme SESSION 179 sur MAJ'
+            git push origin HEAD:main
+          fi
+          echo 'SESSION_179_PUBLIC_MANIFEST_UPDATED'
