@@ -1,0 +1,120 @@
+name: Publier Setup SESSION 183 depuis la Release SESSION
+run-name: SESSION 183 - Transfert Setup vers MAJ
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-183-from-session.yml'
+permissions:
+  contents: write
+concurrency:
+  group: transfer-session-183-maj
+  cancel-in-progress: false
+jobs:
+  transfer-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recuperer les deux fichiers verifies de la Release SESSION 183
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOURCE_TOKEN}" ]]; then
+            echo "::error::SESSION_RELEASE_READ_TOKEN non configure dans le depot MAJ."
+            exit 1
+          fi
+          mkdir -p transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release download mems-session-build-183 \
+            --repo mini56/ECU-Mems-Manager-Session \
+            --pattern 'ECU-Mems-Manager-Session-183-Setup.exe' \
+            --pattern 'SESSION-183-Setup.sha256' \
+            --dir transfer
+          cd transfer
+          sha256sum --check --status SESSION-183-Setup.sha256
+          test "$(stat -c '%s' ECU-Mems-Manager-Session-183-Setup.exe)" -gt 100000000
+          test "$(head -c 2 ECU-Mems-Manager-Session-183-Setup.exe)" = MZ
+          echo 'SESSION_183_SOURCE_SHA256_AND_SIZE_VERIFIED'
+      - name: Publier uniquement Setup et SHA-256 sur MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=mems-session-build-183
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo "::error::La Release 183 existe deja sur MAJ : publication annulee pour eviter tout ecrasement."
+            exit 1
+          fi
+          cat > release-notes.txt <<'NOTES'
+          ### Français
+
+          **ECU MEMS Manager SESSION 183 — Corrections ECU connectés, MEMS 1.9 et 2J**
+
+          - Une connexion ROSCO confirmée classe correctement la famille de protocole ; aucune référence ECU en base documentaire n'est exigée.
+          - Les commandes déjà présentes d'effacement et de remise à zéro ne sont plus bloquées par un état de famille inconnue après connexion ROSCO.
+          - MEMS 1.9 : les commandes et mouvements IAC existants tiennent compte de l'écho local du câble K-Line et de la réponse ECU.
+          - MEMS 2J : connexion confirmée par le dialogue réel d'initialisation/authentification ; la réponse régime est optionnelle.
+          - MEMS 2J : les refus ponctuels n'excluent plus définitivement les mesures, et les trames 21 00 / 21 06 sont conservées en hexadécimal brut.
+          - Aucun nouveau MEMS 3, RC5 ni nouvelle commande de modification : les autres pages, protocoles historiques, IA et bases documentaires restent inchangés.
+          - Setup Windows x64 compilé, installé et testé : protocoles, ABI ROSCO, non-régression et 15 pages.
+          - Essais sur calculateurs physiques à réaliser avant toute validation matérielle.
+
+          ---
+
+          ### English
+
+          **ECU MEMS Manager SESSION 183 — Connected ROSCO, MEMS 1.9 and MEMS 2J fixes**
+
+          - A valid ROSCO handshake now sets the legacy protocol family without requiring an ECU database entry.
+          - Existing fault-clear and reset controls no longer fail due to unknown family state after a confirmed legacy connection.
+          - Existing MEMS 1.9 K-Line actions account for optional local cable echo and ECU reply.
+          - MEMS 2J connection uses real diagnostic/authentication responses; RPM remains optional.
+          - Temporary sensor rejections no longer permanently blacklist readings; 21 00 and 21 06 payloads are retained as raw hex.
+          - No new MEMS 3, RC5 or ECU mutation features. Legacy ROSCO, UI, AI and databases remain unchanged.
+          - Windows x64 Setup with installed GUI, protocol and ROSCO ABI regression tests; physical ECU validation pending.
+          NOTES
+          gh release create "$tag" \
+            transfer/ECU-Mems-Manager-Session-183-Setup.exe \
+            transfer/SESSION-183-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 183 - Setup Windows' \
+            --notes-file release-notes.txt \
+            --latest
+          test "$(gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" -eq 2
+          echo 'SESSION_183_PUBLIC_SETUP_RELEASE_VERIFIED'
+      - name: Actualiser uniquement la rubrique programme du manifeste MAJ
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          exe=Path('transfer/ECU-Mems-Manager-Session-183-Setup.exe')
+          sha=hashlib.file_digest(exe.open('rb'),'sha256').hexdigest()
+          path=Path('manifest.json')
+          manifest=json.loads(path.read_text(encoding='utf-8'))
+          program=manifest.setdefault('program',{})
+          program.update({
+            'available':True,
+            'version':'1.1.83',
+            'release_url':'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-183/ECU-Mems-Manager-Session-183-Setup.exe',
+            'sha256':sha,
+          })
+          path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SESSION_183_PROGRAM_MANIFEST_READY',sha)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publication programme SESSION 183 sur MAJ'
+            git push origin HEAD:main
+          fi
+          echo 'SESSION_183_PUBLIC_MANIFEST_UPDATED'
