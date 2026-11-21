@@ -69,10 +69,12 @@ jobs:
           manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
           program=manifest.get('program',{})
           version=program.get('version','')
-          m=re.fullmatch(r'1\.1\.(\d+)',version)
+          published_url=program.get('release_url','')
+          m=re.search(r'/releases/download/mems-session-build-(\d+)/',published_url)
           if m is None:
-              raise SystemExit(f'MAJ: version du manifeste inattendue: {version!r}')
+              raise SystemExit('MAJ: lien de Release du manifeste invalide')
           current=int(m.group(1))
+          print('MAJ_CURRENT_RELEASE_TAG',current,'DISPLAY_VERSION',version)
           releases=json.loads(gh(secret,'api',f'repos/{SOURCE}/releases?per_page=100'))
           eligible={}
           for release in releases:
@@ -155,7 +157,7 @@ jobs:
               sha=indexed[exe]['digest'].split(':',1)[1]
               manifest['program'].update({
                   'available':True,
-                  'version':f'1.1.{latest}',
+                  'version':f'1.1.{latest-100}',
                   'release_url':f'https://github.com/{PUBLIC}/releases/download/{tag}/{exe}',
                   'sha256':sha
               })
@@ -171,7 +173,7 @@ jobs:
                   subprocess.run(['git','commit','-m',
                       f'Publication automatique SESSION {latest} sur MAJ'],check=True)
                   subprocess.run(['git','push','origin','HEAD:main'],check=True)
-              print('MAJ_MANIFEST_PROGRAM_UPDATED',f'1.1.{latest}')
+              print('MAJ_MANIFEST_PROGRAM_UPDATED',f'1.1.{latest-100}')
           else:
               tag=f'mems-session-build-{current}'
               public_assets=assets_of(tag)
