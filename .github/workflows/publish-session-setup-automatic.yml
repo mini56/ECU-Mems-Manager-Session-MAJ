@@ -1,0 +1,183 @@
+name: Publier automatiquement les Setup SESSION sur le site MAJ
+run-name: MAJ - Synchronisation automatique des Setup SESSION
+on:
+  # Un seul mecanisme permanent pour les futures versions.
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-setup-automatic.yml'
+permissions:
+  contents: write
+concurrency:
+  group: session-setup-automatic-publication
+  cancel-in-progress: false
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+      - name: Chercher et publier seulement les versions absentes du site MAJ
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+          PUBLIC_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          SOURCE='mini56/ECU-Mems-Manager-Session'
+          PUBLIC='mini56/ECU-Mems-Manager-Session-MAJ'
+          secret=os.environ.get('SOURCE_TOKEN','')
+          public_token=os.environ.get('PUBLIC_TOKEN','')
+          if not secret or not public_token:
+              raise SystemExit('MAJ: SOURCE_TOKEN ou PUBLIC_TOKEN indisponible')
+
+          def gh(token,*args):
+              env=os.environ.copy()
+              env['GH_TOKEN']=token
+              done=subprocess.run(['gh',*args],check=True,text=True,
+                                  stdout=subprocess.PIPE,env=env)
+              return done.stdout
+
+          def assets_of(tag):
+              release=json.loads(gh(public_token,'api',f'repos/{PUBLIC}/releases/tags/{tag}'))
+              return {a['name']:a for a in release.get('assets',[])}
+
+          def check_published(tag,asset_info):
+              actual=assets_of(tag)
+              for name,expected in asset_info.items():
+                  item=actual.get(name)
+                  if not item:
+                      raise SystemExit(f'MAJ: {tag}: fichier public absent: {name}')
+                  if (item.get('digest')!=expected.get('digest') or
+                      item.get('size')!=expected.get('size')):
+                      raise SystemExit(f'MAJ: {tag}: empreinte/taille incorrecte pour {name}')
+              print('RELEASE_MAJ_VERIFIED',tag)
+
+          manifest_path=Path('manifest.json')
+          manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
+          program=manifest.get('program',{})
+          version=program.get('version','')
+          m=re.fullmatch(r'1\.1\.(\d+)',version)
+          if m is None:
+              raise SystemExit(f'MAJ: version du manifeste inattendue: {version!r}')
+          current=int(m.group(1))
+          releases=json.loads(gh(secret,'api',f'repos/{SOURCE}/releases?per_page=100'))
+          eligible={}
+          for release in releases:
+              match=re.fullmatch(r'mems-session-build-(\d+)',release.get('tag_name',''))
+              if not match or release.get('draft') or release.get('prerelease'):
+                  continue
+              number=int(match.group(1))
+              if number<=current:
+                  continue
+              exe=f'ECU-Mems-Manager-Session-{number}-Setup.exe'
+              sha_file=f'SESSION-{number}-Setup.sha256'
+              indexed={a['name']:a for a in release.get('assets',[])}
+              if exe not in indexed or sha_file not in indexed:
+                  raise SystemExit(f'MAJ: Release {number} sans les 2 fichiers attendus')
+              for name in (exe,sha_file):
+                  data=indexed[name]
+                  if (int(data.get('size') or 0)<=0 or
+                      not str(data.get('digest') or '').startswith('sha256:')):
+                      raise SystemExit(f'MAJ: {number}: empreinte Github absente: {name}')
+              eligible[number]=(release,exe,sha_file,indexed)
+          pending=sorted(eligible)
+          if not pending:
+              print('MAJ_ALREADY_CURRENT',version)
+          else:
+              print('MAJ_NEW_RELEASES',pending)
+
+          for number in pending:
+              release,exe,sha_file,indexed=eligible[number]
+              tag=f'mems-session-build-{number}'
+              directory=Path('transfer')/tag
+              directory.mkdir(parents=True,exist_ok=True)
+              gh(secret,'release','download',tag,'--repo',SOURCE,
+                 '--pattern',exe,'--pattern',sha_file,'--dir',str(directory))
+              file_exe=directory/exe
+              file_sha=directory/sha_file
+              if not file_exe.is_file() or not file_sha.is_file():
+                  raise SystemExit(f'MAJ: fichiers {tag} non telecharges')
+              subprocess.run(['sha256sum','--check','--status',sha_file],
+                             cwd=directory,check=True)
+              for name in (exe,sha_file):
+                  f=directory/name
+                  with f.open('rb') as stream:
+                      digest=hashlib.file_digest(stream,'sha256').hexdigest()
+                  if (f.stat().st_size!=int(indexed[name]['size']) or
+                      'sha256:'+digest!=indexed[name]['digest']):
+                      raise SystemExit(f'MAJ: verification des fichiers source echouee {name}')
+              with file_exe.open('rb') as stream:
+                  if stream.read(2)!=b'MZ':
+                      raise SystemExit(f'MAJ: executable Windows invalide {exe}')
+
+              notes=gh(secret,'release','view',tag,'--repo',SOURCE,
+                       '--json','body','--jq','.body').strip()
+              if not notes:
+                  notes=f'ECU MEMS Manager SESSION {number} - Setup Windows officiel'
+              note_file=directory/'release-notes.txt'
+              note_file.write_text(notes+'\n',encoding='utf-8')
+
+              existing=subprocess.run(
+                  ['gh','release','view',tag,'--repo',PUBLIC,'--json','id'],
+                  env={**os.environ,'GH_TOKEN':public_token},
+                  stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+              if existing.returncode!=0:
+                  gh(public_token,'release','create',tag,str(file_exe),str(file_sha),
+                     '--repo',PUBLIC,'--title',
+                     f'ECU MEMS Manager SESSION {number} - Setup Windows',
+                     '--notes-file',str(note_file),'--latest')
+              else:
+                  public_files=assets_of(tag)
+                  for name in (exe,sha_file):
+                      if name not in public_files:
+                          gh(public_token,'release','upload',tag,
+                             str(directory/name),'--repo',PUBLIC)
+              check_published(tag,{exe:indexed[exe],sha_file:indexed[sha_file]})
+              print('MAJ_PUBLICATION_OK',tag)
+
+          if pending:
+              latest=pending[-1]
+              release,exe,sha_file,indexed=eligible[latest]
+              tag=f'mems-session-build-{latest}'
+              sha=indexed[exe]['digest'].split(':',1)[1]
+              manifest['program'].update({
+                  'available':True,
+                  'version':f'1.1.{latest}',
+                  'release_url':f'https://github.com/{PUBLIC}/releases/download/{tag}/{exe}',
+                  'sha256':sha
+              })
+              manifest_path.write_text(
+                  json.dumps(manifest,indent=2,ensure_ascii=False)+'\n',
+                  encoding='utf-8')
+              subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
+              subprocess.run(['git','config','user.email',
+                  '41898282+github-actions[bot]@users.noreply.github.com'],check=True)
+              subprocess.run(['git','add','manifest.json'],check=True)
+              changes=subprocess.run(['git','diff','--cached','--quiet'])
+              if changes.returncode:
+                  subprocess.run(['git','commit','-m',
+                      f'Publication automatique SESSION {latest} sur MAJ'],check=True)
+                  subprocess.run(['git','push','origin','HEAD:main'],check=True)
+              print('MAJ_MANIFEST_PROGRAM_UPDATED',f'1.1.{latest}')
+          else:
+              tag=f'mems-session-build-{current}'
+              public_assets=assets_of(tag)
+              exe=f'ECU-Mems-Manager-Session-{current}-Setup.exe'
+              expected='sha256:'+str(program.get('sha256',''))
+              if exe not in public_assets or public_assets[exe].get('digest')!=expected:
+                  raise SystemExit(f'MAJ: la version courante {tag} ne correspond pas au manifeste')
+              print('MAJ_LATEST_PUBLIC_SETUP_AND_MANIFEST_VERIFIED',tag)
+          PY
