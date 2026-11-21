@@ -1,0 +1,100 @@
+name: Transferer Setup SESSION 188 sur le site public MAJ
+run-name: SESSION 188 - Transfert Setup vers MAJ
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-188-from-session.yml'
+permissions:
+  contents: write
+concurrency:
+  group: transfer-session-188-maj
+  cancel-in-progress: false
+jobs:
+  transfer-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recuperer la Release 188 et verifier le Setup et SHA256
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOURCE_TOKEN}" ]]; then
+            echo "::error::SESSION_RELEASE_READ_TOKEN non configure sur MAJ."
+            exit 1
+          fi
+          mkdir -p transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release download mems-session-build-188 \
+            --repo mini56/ECU-Mems-Manager-Session \
+            --pattern 'ECU-Mems-Manager-Session-188-Setup.exe' \
+            --pattern 'SESSION-188-Setup.sha256' \
+            --dir transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release view mems-session-build-188 \
+            --repo mini56/ECU-Mems-Manager-Session --json body --jq '.body' \
+            > release-notes.txt
+          sha256sum --check --status transfer/SESSION-188-Setup.sha256
+          test "$(stat -c '%s' transfer/ECU-Mems-Manager-Session-188-Setup.exe)" -eq 449563249
+          test "$(sha256sum transfer/ECU-Mems-Manager-Session-188-Setup.exe | cut -d' ' -f1)" = \
+            'aa7838b474020821c60902cfc89a7f256644e47ab1a9e66d91729af05d66ad09'
+          test "$(head -c 2 transfer/ECU-Mems-Manager-Session-188-Setup.exe)" = MZ
+          test -s release-notes.txt
+          echo 'SESSION_188_SOURCE_SETUP_SHA256_SIZE_NOTES_VERIFIED'
+      - name: Publier uniquement les fichiers Setup et SHA sur MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=mems-session-build-188
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo "::error::Release 188 deja presente sur MAJ, pas d'ecrasement automatique."
+            exit 1
+          fi
+          gh release create "$tag" \
+            transfer/ECU-Mems-Manager-Session-188-Setup.exe \
+            transfer/SESSION-188-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 188 - Setup Windows' \
+            --notes-file release-notes.txt \
+            --latest
+          test "$(gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" -eq 2
+          echo 'SESSION_188_PUBLIC_SETUP_RELEASE_VERIFIED'
+      - name: Actualiser exclusivement la version programme du manifeste public
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          exe=Path('transfer/ECU-Mems-Manager-Session-188-Setup.exe')
+          with exe.open('rb') as stream:
+              sha=hashlib.file_digest(stream,'sha256').hexdigest()
+          expected='aa7838b474020821c60902cfc89a7f256644e47ab1a9e66d91729af05d66ad09'
+          assert sha==expected, 'PUBLIC_MANIFEST_HASH_MISMATCH'
+          path=Path('manifest.json')
+          manifest=json.loads(path.read_text(encoding='utf-8'))
+          program=manifest.setdefault('program',{})
+          program.update({
+              'available':True,
+              'version':'1.1.88',
+              'release_url':'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-188/ECU-Mems-Manager-Session-188-Setup.exe',
+              'sha256':sha,
+          })
+          path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SESSION_188_PROGRAM_MANIFEST_READY',sha)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publication programme SESSION 188 sur MAJ'
+            git push origin HEAD:main
+          fi
+          echo 'SESSION_188_PUBLIC_MANIFEST_UPDATED'
