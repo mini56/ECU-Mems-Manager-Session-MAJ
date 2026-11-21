@@ -36,6 +36,9 @@ jobs:
           import re
           import subprocess
           from pathlib import Path
+          import sys
+          sys.path.insert(0, str(Path('tools').resolve()))
+          from public_session_notes import make_release_notes, release_number
 
           SOURCE='mini56/ECU-Mems-Manager-Session'
           PUBLIC='mini56/ECU-Mems-Manager-Session-MAJ'
@@ -65,6 +68,29 @@ jobs:
                       item.get('size')!=expected.get('size')):
                       raise SystemExit(f'MAJ: {tag}: empreinte/taille incorrecte pour {name}')
               print('RELEASE_MAJ_VERIFIED',tag)
+
+          # Public site only: immediately replace earlier overly detailed
+          # notes. Never alter Setup assets, tags or the private repository.
+          public_releases=json.loads(gh(public_token,'api',
+              f'repos/{PUBLIC}/releases?per_page=100'))
+          for published in public_releases:
+              number=release_number(published.get('tag_name',''))
+              if number is None or published.get('draft'):
+                  continue
+              expected=make_release_notes(number)
+              if (published.get('body') or '').strip()==expected.strip():
+                  continue
+              tag=published['tag_name']
+              note_path=Path(f'public-release-{number}.md')
+              note_path.write_text(expected,encoding='utf-8')
+              gh(public_token,'release','edit',tag,'--repo',PUBLIC,
+                 '--notes-file',str(note_path))
+              verified=json.loads(gh(public_token,'api',
+                  f'repos/{PUBLIC}/releases/tags/{tag}'))
+              if (verified.get('body') or '').strip()!=expected.strip():
+                  raise SystemExit(f'MAJ: failed to sanitize public release {tag}')
+              note_path.unlink()
+              print('MAJ_PUBLIC_RELEASE_NOTES_SANITIZED',number)
 
           manifest_path=Path('manifest.json')
           manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
@@ -126,10 +152,8 @@ jobs:
                   if stream.read(2)!=b'MZ':
                       raise SystemExit(f'MAJ: executable Windows invalide {exe}')
 
-              notes=gh(secret,'release','view',tag,'--repo',SOURCE,
-                       '--json','body','--jq','.body').strip()
-              if not notes:
-                  notes=f'ECU MEMS Manager SESSION {number} - Setup Windows officiel'
+              # Never publish private release notes or internal research.
+              notes=make_release_notes(number)
               note_file=directory/'release-notes.txt'
               note_file.write_text(notes+'\n',encoding='utf-8')
 
