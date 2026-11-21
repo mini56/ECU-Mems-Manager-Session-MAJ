@@ -1,8 +1,10 @@
 name: Publier automatiquement les Setup SESSION sur le site MAJ
 run-name: MAJ - Synchronisation automatique des Setup SESSION
 on:
-  # Synchronisation autonome frequente : controle toutes les 5 minutes.
-  # Les declenchements planifies GitHub peuvent etre legerement retardes.
+  # Filet de secours historique uniquement : la publication des futures
+  # SESSION doit se faire et etre verifiee dans le RUN prive lui-meme.
+  # GitHub ne garantit pas l'execution precise des jobs cron.
+  # Un push sur ce workflow declenche egalement un controle immediat.
   schedule:
     - cron: '2-59/5 * * * *'
   workflow_dispatch:
