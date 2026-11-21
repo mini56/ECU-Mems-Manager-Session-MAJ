@@ -1,0 +1,123 @@
+name: Transferer Setup SESSION 187 sur le site public MAJ
+run-name: SESSION 187 - Transfert Setup vers MAJ
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-session-187-from-session.yml'
+permissions:
+  contents: write
+concurrency:
+  group: transfer-session-187-maj
+  cancel-in-progress: false
+jobs:
+  transfer-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Charger le depot public MAJ
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recuperer les deux fichiers verifies de la Release SESSION 187
+        shell: bash
+        env:
+          SOURCE_TOKEN: ${{ secrets.SESSION_RELEASE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SOURCE_TOKEN}" ]]; then
+            echo "::error::SESSION_RELEASE_READ_TOKEN non configure dans le depot MAJ."
+            exit 1
+          fi
+          mkdir -p transfer
+          GH_TOKEN="${SOURCE_TOKEN}" gh release download mems-session-build-187 \
+            --repo mini56/ECU-Mems-Manager-Session \
+            --pattern 'ECU-Mems-Manager-Session-187-Setup.exe' \
+            --pattern 'SESSION-187-Setup.sha256' \
+            --dir transfer
+          cd transfer
+          sha256sum --check --status SESSION-187-Setup.sha256
+          test "$(stat -c '%s' ECU-Mems-Manager-Session-187-Setup.exe)" -eq 449576415
+          test "$(head -c 2 ECU-Mems-Manager-Session-187-Setup.exe)" = MZ
+          echo 'SESSION_187_SOURCE_SHA256_AND_SIZE_VERIFIED'
+      - name: Publier uniquement Setup et SHA-256 sur MAJ
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=mems-session-build-187
+          if gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ >/dev/null 2>&1; then
+            echo "::error::La Release 187 existe deja sur MAJ : publication annulee pour eviter tout ecrasement."
+            exit 1
+          fi
+          cat > release-notes.txt <<'NOTES'
+          ### Français
+          
+          **ECU MEMS Manager SESSION 187 — Airbag / SRS RC5**
+          
+          - Première colonne de la page Autres calculateurs : commandes Connecter, Déconnecter, Lire les défauts et Effacer les défauts.
+          - Protocole RC5 indépendant, 2400 bauds 8N1, séquence de réveil, ping et réponses authentifiées par somme de contrôle.
+          - Détection automatique des ports série au clic, dialogue en thread séparé pour ne pas figer l'écran.
+          - Tableau des défauts 16 bits, 24 descriptions spécifiques plus 24 variantes historiques, codes et trames brutes conservés.
+          - Effacement envoyé uniquement après clic explicite ; relecture automatique des défauts ensuite.
+          - Traductions FR/EN/DE/ES/IT/PT, thèmes clair/sombre, trois colonnes de même largeur et menu 16 pages.
+          - Colonnes Antidémarrage et Programmation des clés inchangées, réservées sans fonctions.
+          - Tests de protocole synthétiques et non-régression de l'interface dans le Setup Windows. Essais réels sur calculateur RC5 et vérification du câble encore nécessaires.
+          - Protocoles moteur MEMS 1.x, 1.9, 2J, 3 et ROSCO conservés.
+          
+          ---
+          
+          ### English
+          
+          **ECU MEMS Manager SESSION 187 — Airbag / SRS RC5**
+          
+          - First column of Other control units now supports Connect, Disconnect, Read faults and Clear faults.
+          - Independent 2400 baud 8N1 RC5 protocol with wake pulses, ping and checksummed ECU replies.
+          - Serial ports detected on demand, with a dedicated worker thread to keep the UI responsive.
+          - 16-bit present/historical SRS faults, 24 translated descriptions and 24 historic variants; raw codes and replies retained.
+          - Fault clear is user-triggered only and followed by automatic re-reading.
+          - Six languages, dark/light themes, three equal columns and existing 16-entry menu.
+          - Immobiliser and Key programming remain reserved with no active commands.
+          - Windows Setup, synthetic protocol and UI tests; real RC5 hardware/cable verification still required.
+          - MEMS engine and ROSCO protocols unchanged.
+          NOTES
+          gh release create "$tag" \
+            transfer/ECU-Mems-Manager-Session-187-Setup.exe \
+            transfer/SESSION-187-Setup.sha256 \
+            --repo mini56/ECU-Mems-Manager-Session-MAJ \
+            --title 'ECU MEMS Manager SESSION 187 - Setup Windows' \
+            --notes-file release-notes.txt \
+            --latest
+          test "$(gh release view "$tag" --repo mini56/ECU-Mems-Manager-Session-MAJ --json assets --jq '.assets|length')" -eq 2
+          echo 'SESSION_187_PUBLIC_SETUP_RELEASE_VERIFIED'
+      - name: Actualiser uniquement la rubrique programme du manifeste MAJ
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          exe=Path('transfer/ECU-Mems-Manager-Session-187-Setup.exe')
+          sha=hashlib.file_digest(exe.open('rb'),'sha256').hexdigest()
+          path=Path('manifest.json')
+          manifest=json.loads(path.read_text(encoding='utf-8'))
+          program=manifest.setdefault('program',{})
+          program.update({
+            'available':True,
+            'version':'1.1.87',
+            'release_url':'https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-187/ECU-Mems-Manager-Session-187-Setup.exe',
+            'sha256':sha,
+          })
+          path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SESSION_187_PROGRAM_MANIFEST_READY',sha)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publication programme SESSION 187 sur MAJ'
+            git push origin HEAD:main
+          fi
+          echo 'SESSION_187_PUBLIC_MANIFEST_UPDATED'
