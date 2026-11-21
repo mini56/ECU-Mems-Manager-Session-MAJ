@@ -39,7 +39,7 @@ jobs:
           GH_TOKEN="${SOURCE_TOKEN}" gh release view mems-session-build-188 \
             --repo mini56/ECU-Mems-Manager-Session --json body --jq '.body' \
             > release-notes.txt
-          sha256sum --check --status transfer/SESSION-188-Setup.sha256
+          (cd transfer && sha256sum --check --status SESSION-188-Setup.sha256)
           test "$(stat -c '%s' transfer/ECU-Mems-Manager-Session-188-Setup.exe)" -eq 449563249
           test "$(sha256sum transfer/ECU-Mems-Manager-Session-188-Setup.exe | cut -d' ' -f1)" = \
             'aa7838b474020821c60902cfc89a7f256644e47ab1a9e66d91729af05d66ad09'
