@@ -3,9 +3,9 @@
   "application": "ECU MEMS Manager SESSION",
   "program": {
     "available": true,
-    "version": "1.1.96",
-    "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-196/ECU-Mems-Manager-Session-196-Setup.exe",
-    "sha256": "8aa5f55784ec4cb8f26787a734d68e7cf26572c7fbca8ce86b1fcb264a977ee4",
+    "version": "1.1.97",
+    "release_url": "https://github.com/mini56/ECU-Mems-Manager-Session-MAJ/releases/download/mems-session-build-197/ECU-Mems-Manager-Session-197-Setup.exe",
+    "sha256": "4e2bd20ce37595d79d0f7b9c6b1832be9fc1c6f8cf5cc87b5ff4573c330e8ee1",
     "test_release": {
       "version": "1.1.40",
       "channel": "TEST",
